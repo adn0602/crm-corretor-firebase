@@ -1,26 +1,42 @@
-import React from 'react'
+import React from 'react';
+import { db } from './firebase/config';
+import { collection, addDoc } from 'firebase/firestore';
 
 function App() {
+  const testFirebase = async () => {
+    try {
+      // Testa a conexão com Firebase
+      const docRef = await addDoc(collection(db, 'test'), {
+        message: 'Teste de conexão Firebase',
+        timestamp: new Date()
+      });
+      alert('✅ Firebase CONECTADO! ID: ' + docRef.id);
+    } catch (error) {
+      alert('❌ Erro Firebase: ' + error.message);
+    }
+  };
+
   return (
-    <div style={{ 
-      padding: '50px', 
-      textAlign: 'center',
-      fontFamily: 'Arial'
-    }}>
+    <div style={{ padding: '50px', textAlign: 'center' }}>
       <h1>🚀 CRM Corretor Firebase</h1>
-      <p>Projeto iniciado com sucesso!</p>
-      <div style={{ 
-        background: '#e8f5e8', 
-        padding: '20px', 
-        margin: '20px auto',
-        maxWidth: '400px',
-        borderRadius: '10px'
-      }}>
-        <h3>✅ Sistema Pronto</h3>
-        <p>Firebase + React + Vercel</p>
-      </div>
+      <p>Firebase + React + Vercel</p>
+      
+      <button 
+        onClick={testFirebase}
+        style={{
+          padding: '15px 30px',
+          background: '#007bff',
+          color: 'white',
+          border: 'none',
+          borderRadius: '8px',
+          cursor: 'pointer',
+          marginTop: '20px'
+        }}
+      >
+        🧪 TESTAR FIREBASE
+      </button>
     </div>
-  )
+  );
 }
 
-export default App
+export default App;
