@@ -6,7 +6,159 @@ import { useClients, useProperties } from './hooks/useFirebase';
 function App() {
   const [user, setUser] = useState(null);
   const [currentPage, setCurrentPage] = useState('login');
-  const { addClient } = useClients();
+  const { addClient } = useClients();import React, { useState, useEffect } from 'react';
+import { db } from './firebase/config';
+import { collection, addDoc, getDocs } from 'firebase/firestore';
+
+function App() {
+  const [testResult, setTestResult] = useState('🔄 Testando conexão...');
+  const [clients, setClients] = useState([]);
+
+  // Teste de conexão com Firebase
+  useEffect(() => {
+    testFirebaseConnection();
+  }, []);
+
+  const testFirebaseConnection = async () => {
+    try {
+      // Teste 1: Tentar adicionar um documento
+      const docRef = await addDoc(collection(db, 'test_connection'), {
+        message: 'Teste de conexão Firebase',
+        timestamp: new Date(),
+        status: 'testing'
+      });
+      
+      setTestResult(`✅ Firebase CONECTADO! Documento criado: ${docRef.id}`);
+      
+      // Teste 2: Listar clientes existentes
+      const clientsSnapshot = await getDocs(collection(db, 'clients'));
+      const clientsList = clientsSnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+      
+      setClients(clientsList);
+      
+    } catch (error) {
+      setTestResult(`❌ ERRO NO FIREBASE: ${error.message}`);
+      console.error('Erro detalhado:', error);
+    }
+  };
+
+  const addTestClient = async () => {
+    try {
+      const docRef = await addDoc(collection(db, 'clients'), {
+        fullName: 'Cliente Teste ' + Date.now(),
+        email: 'teste@email.com',
+        phones: ['11999999999'],
+        assignedAgent: 'test-user',
+        createdAt: new Date(),
+        status: 'lead'
+      });
+      
+      alert(`✅ Cliente teste salvo! ID: ${docRef.id}`);
+      testFirebaseConnection(); // Recarrega a lista
+      
+    } catch (error) {
+      alert(`❌ Erro ao salvar: ${error.message}`);
+    }
+  };
+
+  return (
+    <div style={{ padding: '20px', fontFamily: 'Arial' }}>
+      <h1>🧪 TESTE DE CONEXÃO FIREBASE</h1>
+      
+      <div style={{
+        background: testResult.includes('✅') ? '#d4edda' : '#f8d7da',
+        color: testResult.includes('✅') ? '#155724' : '#721c24',
+        padding: '20px',
+        borderRadius: '10px',
+        marginBottom: '20px',
+        border: `2px solid ${testResult.includes('✅') ? '#c3e6cb' : '#f5c6cb'}`
+      }}>
+        <h3>Status da Conexão:</h3>
+        <p>{testResult}</p>
+      </div>
+
+      <div style={{
+        display: 'flex',
+        gap: '10px',
+        marginBottom: '20px'
+      }}>
+        <button 
+          onClick={testFirebaseConnection}
+          style={{
+            padding: '10px 20px',
+            background: '#007bff',
+            color: 'white',
+            border: 'none',
+            borderRadius: '5px',
+            cursor: 'pointer'
+          }}
+        >
+          🔄 Testar Novamente
+        </button>
+        
+        <button 
+          onClick={addTestClient}
+          style={{
+            padding: '10px 20px',
+            background: '#28a745',
+            color: 'white',
+            border: 'none',
+            borderRadius: '5px',
+            cursor: 'pointer'
+          }}
+        >
+          ➕ Adicionar Cliente Teste
+        </button>
+      </div>
+
+      <div>
+        <h3>📋 Clientes no Banco de Dados:</h3>
+        {clients.length === 0 ? (
+          <p>Nenhum cliente encontrado no banco de dados.</p>
+        ) : (
+          <div style={{
+            display: 'grid',
+            gap: '10px'
+          }}>
+            {clients.map(client => (
+              <div key={client.id} style={{
+                background: '#f8f9fa',
+                padding: '15px',
+                borderRadius: '5px',
+                border: '1px solid #dee2e6'
+              }}>
+                <strong>{client.fullName}</strong> - {client.email}
+                <br />
+                <small>ID: {client.id}</small>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div style={{
+        background: '#fff3cd',
+        padding: '15px',
+        borderRadius: '5px',
+        marginTop: '20px',
+        border: '1px solid #ffeaa7'
+      }}>
+        <h4>🔧 Instruções do Teste:</h4>
+        <ol>
+          <li>Veja se aparece "✅ Firebase CONECTADO!"</li>
+          <li>Clique em "Adicionar Cliente Teste"</li>
+          <li>Se aparecer alerta de sucesso, o problema está no código anterior</li>
+          <li>Se aparecer erro, o problema é na configuração do Firebase</li>
+        </ol>
+      </div>
+    </div>
+  );
+}
+
+export default App;
   const { addProperty } = useProperties();
 
   const handleLogin = (userData) => {
