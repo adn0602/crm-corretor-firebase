@@ -39,12 +39,19 @@ export const useClients = () => {
   };
 
   const addClient = async (clientData) => {
-    const docRef = await addDoc(collection(db, 'clients'), {
-      ...clientData,
-      createdAt: new Date(),
-      status: 'lead'
-    });
-    return docRef.id;
+    try {
+      const docRef = await addDoc(collection(db, 'clients'), {
+        ...clientData,
+        createdAt: new Date(),
+        status: 'lead',
+        lastContact: new Date()
+      });
+      console.log('✅ Cliente salvo com ID:', docRef.id);
+      return docRef.id;
+    } catch (error) {
+      console.error('❌ Erro ao salvar cliente:', error);
+      throw error;
+    }
   };
 
   const updateClient = async (clientId, updates) => {
@@ -79,12 +86,17 @@ export const useProperties = () => {
   };
 
   const addProperty = async (propertyData) => {
-    const docRef = await addDoc(collection(db, 'properties'), {
-      ...propertyData,
-      createdAt: new Date(),
-      status: 'available'
-    });
-    return docRef.id;
+    try {
+      const docRef = await addDoc(collection(db, 'properties'), {
+        ...propertyData,
+        createdAt: new Date(),
+        status: 'available'
+      });
+      return docRef.id;
+    } catch (error) {
+      console.error('Erro ao salvar imóvel:', error);
+      throw error;
+    }
   };
 
   const updateProperty = async (propertyId, updates) => {
