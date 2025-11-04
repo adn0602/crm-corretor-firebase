@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import Login from './components/Login';
+import ClientList from './components/ClientList';
 import { useClients, useProperties } from './hooks/useFirebase';
 
 function App() {
@@ -11,8 +12,8 @@ function App() {
   const handleLogin = (userData) => {
     setUser({ 
       email: userData.email || 'corretor@google.com', 
-      name: userData.displayName || 'Usuário Google',
-      uid: userData.uid || 'google-user-' + Date.now()
+      name: userData.displayName || 'Alexandre Corretor',
+      uid: userData.uid || 'quick-user-' + Date.now()
     });
     setCurrentPage('dashboard');
   };
@@ -27,9 +28,11 @@ function App() {
     const [name, setName] = useState('');
     const [email, setEmail] = useState('');
     const [phone, setPhone] = useState('');
+    const [loading, setLoading] = useState(false);
 
     const handleSubmit = async (e) => {
       e.preventDefault();
+      setLoading(true);
       try {
         await addClient({
           fullName: name,
@@ -43,6 +46,8 @@ function App() {
         setPhone('');
       } catch (error) {
         alert('❌ Erro: ' + error.message);
+      } finally {
+        setLoading(false);
       }
     };
 
@@ -50,67 +55,82 @@ function App() {
       <div style={{ padding: '20px', maxWidth: '500px' }}>
         <h2>👥 Cadastrar Cliente</h2>
         <form onSubmit={handleSubmit}>
-          <input
-            type="text"
-            placeholder="Nome completo"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            style={{ 
-              width: '100%', 
-              padding: '12px', 
-              margin: '8px 0', 
-              border: '1px solid #ddd', 
-              borderRadius: '5px',
-              fontSize: '16px'
-            }}
-            required
-          />
-          <input
-            type="email"
-            placeholder="Email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            style={{ 
-              width: '100%', 
-              padding: '12px', 
-              margin: '8px 0', 
-              border: '1px solid #ddd', 
-              borderRadius: '5px',
-              fontSize: '16px'
-            }}
-            required
-          />
-          <input
-            type="text"
-            placeholder="Telefone"
-            value={phone}
-            onChange={(e) => setPhone(e.target.value)}
-            style={{ 
-              width: '100%', 
-              padding: '12px', 
-              margin: '8px 0', 
-              border: '1px solid #ddd', 
-              borderRadius: '5px',
-              fontSize: '16px'
-            }}
-            required
-          />
+          <div style={{ marginBottom: '15px' }}>
+            <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}>
+              Nome completo *
+            </label>
+            <input
+              type="text"
+              placeholder="Digite o nome completo"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              style={{ 
+                width: '100%', 
+                padding: '12px', 
+                border: '1px solid #ddd', 
+                borderRadius: '5px',
+                fontSize: '16px'
+              }}
+              required
+            />
+          </div>
+
+          <div style={{ marginBottom: '15px' }}>
+            <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}>
+              Email *
+            </label>
+            <input
+              type="email"
+              placeholder="Digite o email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              style={{ 
+                width: '100%', 
+                padding: '12px', 
+                border: '1px solid #ddd', 
+                borderRadius: '5px',
+                fontSize: '16px'
+              }}
+              required
+            />
+          </div>
+
+          <div style={{ marginBottom: '20px' }}>
+            <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}>
+              Telefone *
+            </label>
+            <input
+              type="text"
+              placeholder="Digite o telefone"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              style={{ 
+                width: '100%', 
+                padding: '12px', 
+                border: '1px solid #ddd', 
+                borderRadius: '5px',
+                fontSize: '16px'
+              }}
+              required
+            />
+          </div>
+
           <button 
             type="submit"
+            disabled={loading}
             style={{
               width: '100%',
               padding: '12px',
-              background: '#28a745',
+              background: loading ? '#6c757d' : '#28a745',
               color: 'white',
               border: 'none',
               borderRadius: '5px',
-              cursor: 'pointer',
-              marginTop: '10px',
+              cursor: loading ? 'not-allowed' : 'pointer',
               fontSize: '16px',
               fontWeight: '500'
             }}
           >
-            💾 Salvar Cliente
+            {loading ? '⏳ Salvando...' : '💾 Salvar Cliente'}
           </button>
         </form>
       </div>
@@ -186,7 +206,21 @@ function App() {
             fontSize: '14px'
           }}
         >
-          👥 Clientes
+          ➕ Cadastrar Cliente
+        </button>
+        <button 
+          onClick={() => setCurrentPage('clientList')}
+          style={{ 
+            padding: '10px 20px',
+            background: currentPage === 'clientList' ? '#2c3e50' : '#34495e',
+            color: 'white',
+            border: 'none',
+            borderRadius: '5px',
+            cursor: 'pointer',
+            fontSize: '14px'
+          }}
+        >
+          📋 Lista de Clientes
         </button>
         <button 
           onClick={() => setCurrentPage('properties')}
@@ -253,6 +287,8 @@ function App() {
         )}
 
         {currentPage === 'clients' && <ClientForm />}
+        
+        {currentPage === 'clientList' && <ClientList userId={user.uid} />}
         
         {currentPage === 'properties' && (
           <div style={{ padding: '20px' }}>
