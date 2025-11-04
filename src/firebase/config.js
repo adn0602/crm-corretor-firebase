@@ -22,3 +22,9 @@ export const auth = getAuth(app);
 export const storage = getStorage(app);
 
 export default app;
+import { GoogleAuthProvider } from 'firebase/auth';
+
+// ... código existente ...
+
+// Google Auth Provider
+export const googleProvider = new GoogleAuthProvider();
