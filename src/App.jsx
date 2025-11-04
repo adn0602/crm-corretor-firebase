@@ -23,7 +23,7 @@ function App() {
     setCurrentPage('login');
   };
 
-  // Formulário de cliente
+  // Formulário de cliente - CORRIGIDO
   const ClientForm = () => {
     const [name, setName] = useState('');
     const [email, setEmail] = useState('');
@@ -32,20 +32,39 @@ function App() {
 
     const handleSubmit = async (e) => {
       e.preventDefault();
+      
+      // Validação básica
+      if (!name.trim() || !email.trim() || !phone.trim()) {
+        alert('❌ Preencha todos os campos obrigatórios!');
+        return;
+      }
+
       setLoading(true);
       try {
+        console.log('🔄 Tentando salvar cliente...', { name, email, phone, uid: user.uid });
+        
         await addClient({
-          fullName: name,
-          email: email,
-          phones: [phone],
+          fullName: name.trim(),
+          email: email.trim(),
+          phones: [phone.trim()],
           assignedAgent: user.uid
         });
+        
         alert('✅ Cliente cadastrado com sucesso!');
         setName('');
         setEmail('');
         setPhone('');
+        
+        // Se estiver na lista de clientes, recarrega
+        if (currentPage === 'clientList') {
+          // Nota: Em uma aplicação real, seria melhor atualizar o estado da lista
+          // em vez de recarregar a página, mas para um protótipo, isso funciona.
+          window.location.reload(); 
+        }
+        
       } catch (error) {
-        alert('❌ Erro: ' + error.message);
+        console.error('❌ Erro detalhado:', error);
+        alert('❌ Erro ao cadastrar cliente: ' + error.message);
       } finally {
         setLoading(false);
       }
@@ -101,7 +120,7 @@ function App() {
             </label>
             <input
               type="text"
-              placeholder="Digite o telefone"
+              placeholder="Digite o telefone com DDD"
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
               style={{ 
@@ -133,6 +152,19 @@ function App() {
             {loading ? '⏳ Salvando...' : '💾 Salvar Cliente'}
           </button>
         </form>
+
+        <div style={{
+          background: '#e7f3ff',
+          padding: '15px',
+          borderRadius: '8px',
+          marginTop: '20px',
+          border: '1px solid #b3d9ff'
+        }}>
+          <h4 style={{ margin: '0 0 10px 0', color: '#0066cc' }}>💡 Dica</h4>
+          <p style={{ margin: 0, fontSize: '14px', color: '#0066cc' }}>
+            Após cadastrar, vá em <strong>"Lista de Clientes"</strong> para visualizar todos os clientes cadastrados.
+          </p>
+        </div>
       </div>
     );
   };
@@ -154,7 +186,7 @@ function App() {
       }}>
         <h1 style={{ margin: 0, fontSize: '24px' }}>🏠 CRM Corretor</h1>
         <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-          <span>Olá, {user.name}</span>
+          <span>Olá, **{user.name}**</span>
           <button 
             onClick={handleLogout}
             style={{ 
