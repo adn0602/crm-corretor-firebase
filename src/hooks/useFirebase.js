@@ -20,16 +20,22 @@ import { db, auth, googleProvider } from '../firebase/config';
 // Operações com Clientes
 export const useClients = () => {
   const getClients = async (agentId) => {
-    const q = query(
-      collection(db, 'clients'), 
-      where('assignedAgent', '==', agentId),
-      orderBy('createdAt', 'desc')
-    );
-    const querySnapshot = await getDocs(q);
-    return querySnapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
-    }));
+    try {
+      const q = query(
+        collection(db, 'clients'), 
+        where('assignedAgent', '==', agentId),
+        orderBy('createdAt', 'desc')
+      );
+      const querySnapshot = await getDocs(q);
+      const clients = querySnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+      return clients;
+    } catch (error) {
+      console.error('Erro ao buscar clientes:', error);
+      return [];
+    }
   };
 
   const addClient = async (clientData) => {
@@ -55,15 +61,21 @@ export const useClients = () => {
 // Operações com Imóveis
 export const useProperties = () => {
   const getProperties = async () => {
-    const q = query(
-      collection(db, 'properties'),
-      orderBy('createdAt', 'desc')
-    );
-    const querySnapshot = await getDocs(q);
-    return querySnapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
-    }));
+    try {
+      const q = query(
+        collection(db, 'properties'),
+        orderBy('createdAt', 'desc')
+      );
+      const querySnapshot = await getDocs(q);
+      const properties = querySnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+      return properties;
+    } catch (error) {
+      console.error('Erro ao buscar imóveis:', error);
+      return [];
+    }
   };
 
   const addProperty = async (propertyData) => {
