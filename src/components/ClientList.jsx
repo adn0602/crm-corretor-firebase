@@ -4,6 +4,7 @@ import { useClients } from '../hooks/useFirebase';
 function ClientList({ userId }) {
   const [clients, setClients] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
   const { getClients } = useClients();
 
   useEffect(() => {
@@ -11,11 +12,16 @@ function ClientList({ userId }) {
   }, [userId]);
 
   const loadClients = async () => {
+    setLoading(true);
+    setError('');
     try {
+      console.log('🔄 Buscando clientes para userId:', userId);
       const clientesData = await getClients(userId);
+      console.log('📋 Clientes encontrados:', clientesData);
       setClients(clientesData);
     } catch (error) {
-      console.error('Erro ao carregar clientes:', error);
+      console.error('❌ Erro ao carregar clientes:', error);
+      setError('Erro ao carregar clientes: ' + error.message);
     } finally {
       setLoading(false);
     }
@@ -34,6 +40,35 @@ function ClientList({ userId }) {
             ⏳ Carregando clientes...
           </p>
         </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div style={{ padding: '20px' }}>
+        <div style={{
+          background: '#f8d7da',
+          color: '#721c24',
+          padding: '15px',
+          borderRadius: '8px',
+          marginBottom: '20px'
+        }}>
+          <strong>❌ Erro:</strong> {error}
+        </div>
+        <button 
+          onClick={loadClients}
+          style={{
+            padding: '10px 20px',
+            background: '#007bff',
+            color: 'white',
+            border: 'none',
+            borderRadius: '5px',
+            cursor: 'pointer'
+          }}
+        >
+          🔄 Tentar Novamente
+        </button>
       </div>
     );
   }
@@ -117,6 +152,21 @@ function ClientList({ userId }) {
           }}>
             Cadastre seu primeiro cliente usando o formulário de cadastro para começar!
           </p>
+          <button 
+            onClick={() => window.location.hash = '#clients'}
+            style={{
+              marginTop: '20px',
+              padding: '10px 20px',
+              background: '#007bff',
+              color: 'white',
+              border: 'none',
+              borderRadius: '5px',
+              cursor: 'pointer',
+              fontSize: '16px'
+            }}
+          >
+            ➕ Cadastrar Primeiro Cliente
+          </button>
         </div>
       ) : (
         <div style={{
@@ -189,24 +239,6 @@ function ClientList({ userId }) {
                   <span style={{ marginRight: '8px' }}>📞</span>
                   <span>{client.phones?.[0] || 'Telefone não informado'}</span>
                 </div>
-
-                {client.preferences && (
-                  <div style={{ 
-                    background: '#e7f3ff',
-                    padding: '10px',
-                    borderRadius: '6px',
-                    marginTop: '10px',
-                    fontSize: '12px'
-                  }}>
-                    <strong>💡 Interesses:</strong>
-                    {client.preferences.propertyTypes && (
-                      <div>Tipos: {client.preferences.propertyTypes.join(', ')}</div>
-                    )}
-                    {client.preferences.minPrice && (
-                      <div>Preço: R$ {client.preferences.minPrice} - R$ {client.preferences.maxPrice}</div>
-                    )}
-                  </div>
-                )}
                 
                 <div style={{ 
                   marginTop: '15px', 
