@@ -11,6 +11,7 @@ function App() {
     const [email, setEmail] = useState('');
     const [phone, setPhone] = useState('');
     const [activeTab, setActiveTab] = useState('clients');
+    const [loading, setLoading] = useState(true); // ← ADICIONADO: Estado de Loading
 
     // Verificar se usuário já está logado
     useEffect(() => {
@@ -22,6 +23,7 @@ function App() {
                 setUser(null);
                 setClients([]);
             }
+            setLoading(false); // ← ADICIONADO: Desativa o loading após a verificação
         });
         return () => unsubscribe();
     }, []);
@@ -83,6 +85,19 @@ function App() {
         }
     };
 
+    // ADICIONADO: Exibição da tela de loading
+    if (loading) {
+        return (
+            <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+                <div className="text-center">
+                    {/* Estilo simples de loading com Tailwind */}
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-imobiliaria-primary mx-auto"></div>
+                    <p className="mt-4 text-gray-600">Carregando...</p>
+                </div>
+            </div>
+        );
+    }
+
     // Se não tem usuário logado, mostra tela de login
     if (!user) {
         return <Login onLogin={setUser} />;
@@ -91,6 +106,7 @@ function App() {
     // Se tem usuário logado, mostra o CRM
     return (
         <div className="min-h-screen bg-gray-50">
+            {/* ... restante do JSX ... */}
             {/* Header */}
             <header className="bg-white shadow-sm border-b">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
