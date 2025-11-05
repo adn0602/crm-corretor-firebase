@@ -13,21 +13,6 @@ function App() {
     const [activeTab, setActiveTab] = useState('clients');
     const [loading, setLoading] = useState(true); // ← ADICIONADO: Estado de Loading
 
-    // Verificar se usuário já está logado
-    useEffect(() => {
-        const unsubscribe = onAuthStateChanged(auth, (user) => {
-            if (user) {
-                setUser(user);
-                loadClients(user.uid);
-            } else {
-                setUser(null);
-                setClients([]);
-            }
-            setLoading(false); // ← ADICIONADO: Desativa o loading após a verificação
-        });
-        return () => unsubscribe();
-    }, []);
-
     // Carregar clients APENAS do usuário logado
     const loadClients = async (userId) => {
         try {
@@ -85,13 +70,27 @@ function App() {
         }
     };
 
-    // ADICIONADO: Exibição da tela de loading
+    // Verificar se usuário já está logado
+    useEffect(() => {
+        const unsubscribe = onAuthStateChanged(auth, (user) => {
+            if (user) {
+                setUser(user);
+                loadClients(user.uid);
+            } else {
+                setUser(null);
+                setClients([]);
+            }
+            setLoading(false); // ← FINALIZOU: Desativa o loading
+        });
+        return () => unsubscribe();
+    }, []);
+
+    // Se está carregando, mostra loading
     if (loading) {
         return (
             <div className="min-h-screen bg-gray-50 flex items-center justify-center">
                 <div className="text-center">
-                    {/* Estilo simples de loading com Tailwind */}
-                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-imobiliaria-primary mx-auto"></div>
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
                     <p className="mt-4 text-gray-600">Carregando...</p>
                 </div>
             </div>
@@ -106,7 +105,6 @@ function App() {
     // Se tem usuário logado, mostra o CRM
     return (
         <div className="min-h-screen bg-gray-50">
-            {/* ... restante do JSX ... */}
             {/* Header */}
             <header className="bg-white shadow-sm border-b">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
