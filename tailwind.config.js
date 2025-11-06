@@ -1,27 +1,18 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
-
-/* Estilos personalizados para imobiliária */
-@layer components {
-  .btn-primary {
-    @apply bg-imobiliaria-primary hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition duration-200;
-  }
-  
-  .btn-secondary {
-    @apply bg-imobiliaria-secondary hover:bg-blue-500 text-white font-medium py-2 px-4 rounded-lg transition duration-200;
-  }
-  
-  .card {
-    @apply bg-white rounded-xl shadow-md border border-gray-200 p-6 hover:shadow-lg transition duration-200;
-  }
-  
-  .input-field {
-    @apply w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-imobiliaria-primary focus:border-transparent outline-none;
-  }
-}
-
-/* Estilos básicos */
-body {
-  @apply font-sans m-0 p-0;
+/** @type {import('tailwindcss').Config} */
+export default {
+  content: [
+    // Garante que o Tailwind escaneie todos os seus arquivos de código
+    "./index.html",
+    "./src/**/*.{js,ts,jsx,tsx}",
+  ],
+  theme: {
+    extend: {
+      // Cores personalizadas usadas no App.jsx e Login.jsx
+      colors: {
+        'imobiliaria-primary': '#1e40af', // Azul principal
+        'imobiliaria-secondary': '#3b82f6', // Azul secundário
+      },
+    },
+  },
+  plugins: [],
 }
