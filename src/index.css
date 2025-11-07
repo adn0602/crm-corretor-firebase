@@ -1,22 +1,56 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+/* CSS SIMPLES - SEM TAILWIND */
 
-/* Estilos personalizados para imobiliária */
-@layer components {
-  .btn-primary {
-    @apply bg-imobiliaria-primary hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition duration-200;
-  }
-  
-  .btn-secondary {
-    @apply bg-imobiliaria-secondary hover:bg-blue-500 text-white font-medium py-2 px-4 rounded-lg transition duration-200;
-  }
-  
-  .card {
-    @apply bg-white rounded-xl shadow-md border border-gray-200 p-6 hover:shadow-lg transition duration-200;
-  }
-  
-  .input-field {
-    @apply w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-imobiliaria-primary focus:border-transparent outline-none;
-  }
+body {
+  font-family: Arial, sans-serif;
+  margin: 0;
+  padding: 0;
+  background: #f5f5f5;
+}
+
+/* Header */
+.header {
+  background: white;
+  padding: 1rem 2rem;
+  border-bottom: 1px solid #ddd;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+/* Cards */
+.card {
+  background: white;
+  border-radius: 8px;
+  padding: 1.5rem;
+  margin: 1rem 0;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+/* Botões */
+.btn-primary {
+  background: #1e40af;
+  color: white;
+  padding: 10px 16px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: bold;
+}
+
+.btn-secondary {
+  background: #3b82f6;
+  color: white;
+  padding: 10px 16px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+/* Inputs */
+.input-field {
+  padding: 10px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  margin: 5px;
+  width: 200px;
 }
