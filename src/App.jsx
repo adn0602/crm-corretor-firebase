@@ -4,7 +4,6 @@ import { collection, addDoc, getDocs, query, where, updateDoc, doc } from 'fireb
 import { onAuthStateChanged, signOut } from 'firebase/auth';
 import Login from './components/Login';
 
-// FORÇAR ESTILO TAILWIND
 const TailwindStyle = () => (
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" />
 );
@@ -75,10 +74,9 @@ function App() {
         return () => unsubscribe();
     }, []);
 
-    // FILTRO DE BUSCA
     const filteredClients = clients.filter(client => 
-        client.fullName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        client.propertyInterest?.toLowerCase().includes(searchTerm.toLowerCase())
+        (client.fullName || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (client.propertyInterest || "").toLowerCase().includes(searchTerm.toLowerCase())
     );
 
     const getStatusColor = (status) => {
@@ -90,102 +88,88 @@ function App() {
         }
     };
 
-    if (loading) return <div className="flex justify-center items-center h-screen font-bold text-blue-900 italic tracking-widest animate-pulse">CARREGANDO CRM...</div>;
+    if (loading) return <div className="flex justify-center items-center h-screen font-bold text-blue-900">CARREGANDO...</div>;
     if (!user) return <Login onLogin={setUser} />;
 
     return (
-        <div className="min-h-screen bg-gray-100 font-sans text-gray-900 pb-10">
+        <div className="min-h-screen bg-gray-100 pb-10">
             <TailwindStyle />
-            
-            <header className="bg-blue-900 text-white shadow-xl p-5 sticky top-0 z-20">
+            <header className="bg-blue-900 text-white p-5 shadow-lg">
                 <div className="max-w-6xl mx-auto flex justify-between items-center">
-                    <h1 className="text-xl font-black tracking-tighter uppercase">🏠 CRM LOPES PRIME</h1>
-                    <button onClick={() => signOut(auth)} className="bg-red-600 hover:bg-red-700 px-4 py-2 rounded-lg text-[10px] font-bold transition-all shadow-md">SAIR</button>
+                    <h1 className="text-xl font-bold">🏠 CRM LOPES PRIME</h1>
+                    <button onClick={() => signOut(auth)} className="bg-red-600 px-4 py-2 rounded font-bold text-xs">SAIR</button>
                 </div>
             </header>
 
-            <nav className="bg-white border-b flex justify-center gap-4 text-xs font-bold shadow-sm">
-                <button onClick={() => setActiveTab('clients')} className={`py-5 px-4 border-b-4 transition-all ${activeTab === 'clients' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-400'}`}>
-                    👥 MEUS CLIENTES ({clients.length})
+            <nav className="bg-white border-b flex justify-center shadow-sm">
+                <button onClick={() => setActiveTab('clients')} className={`py-4 px-6 border-b-4 font-bold ${activeTab === 'clients' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-400'}`}>
+                    👥 CLIENTES ({clients.length})
                 </button>
-                <button onClick={() => setActiveTab('add')} className={`py-5 px-4 border-b-4 transition-all ${activeTab === 'add' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-400'}`}>
-                    ➕ NOVO CADASTRO
+                <button onClick={() => setActiveTab('add')} className={`py-4 px-6 border-b-4 font-bold ${activeTab === 'add' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-400'}`}>
+                    ➕ NOVO
                 </button>
             </nav>
 
             <main className="max-w-6xl mx-auto p-4 mt-6">
                 {activeTab === 'clients' ? (
                     <>
-                        {/* BARRA DE PESQUISA */}
-                        <div className="mb-8 max-w-2xl mx-auto">
+                        <div className="mb-6 max-w-md mx-auto">
                             <input 
                                 type="text" 
-                                placeholder="🔍 Buscar por nome ou imóvel..." 
+                                placeholder="🔍 Buscar nome ou imóvel..." 
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
-                                className="w-full p-4 bg-white border-2 border-gray-200 rounded-2xl outline-none focus:border-blue-500 shadow-sm font-bold text-gray-700 transition-all"
+                                className="w-full p-3 border-2 border-gray-200 rounded-xl outline-none focus:border-blue-500 font-bold"
                             />
                         </div>
 
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                            {filteredClients.length === 0 ? (
-                                <div className="col-span-full text-center py-10 bg-white rounded-3xl border-2 border-dashed border-gray-200 italic text-gray-400">
-                                    Nenhum cliente encontrado.
-                                </div>
-                            ) : (
-                                filteredClients.map(client => (
-                                    <div key={client.id} className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-xl transition-all">
-                                        <div className="p-5">
-                                            <div className="flex justify-between items-start mb-3">
-                                                <h3 className="font-black text-blue-900 text-lg uppercase leading-tight truncate mr-2">{client.fullName}</h3>
-                                                <span className={`text-[9px] font-black px-2 py-1 rounded-md uppercase whitespace-nowrap ${getStatusColor(client.status)}`}>
-                                                    {client.status || 'LEAD'}
-                                                </span>
-                                            </div>
-                                            
-                                            <div className="bg-yellow-50 border-l-4 border-yellow-400 p-3 mb-4 rounded-r-lg">
-                                                <p className="text-[10px] uppercase font-bold text-yellow-700 mb-1 leading-none">Interesse:</p>
-                                                <p className="text-sm font-bold text-gray-800 italic leading-tight uppercase">"{client.propertyInterest}"</p>
-                                            </div>
-
-                                            <div className="mb-4">
-                                                <label className="text-[10px] font-bold text-gray-400 uppercase block mb-1">Mudar Status:</label>
-                                                <select 
-                                                    value={client.status || 'LEAD'} 
-                                                    onChange={(e) => updateStatus(client.id, e.target.value)}
-                                                    className="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg text-xs font-bold outline-none focus:border-blue-500"
-                                                >
-                                                    <option value="LEAD">LEAD (Novo)</option>
-                                                    <option value="AGENDADO">AGENDADO (Visita)</option>
-                                                    <option value="PROPOSTA">PROPOSTA (Negócio)</option>
-                                                    <option value="FECHADO">FECHADO (Venda)</option>
-                                                </select>
-                                            </div>
-
-                                            <div className="space-y-1 mb-4 text-xs text-gray-600 border-t pt-3">
-                                                <p className="truncate">📧 {client.email || 'Sem e-mail'}</p>
-                                                <p className="font-black text-gray-800 text-sm">📞 {client.phones?.[0]}</p>
-                                            </div>
-                                            
-                                            <a href={`https://wa.me/55${client.phones?.[0]?.replace(/\D/g,'')}`} target="_blank" rel="noreferrer" 
-                                               className="flex items-center justify-center w-full bg-green-500 hover:bg-green-600 text-white font-black py-3 rounded-xl shadow-md transition-all active:scale-95 text-xs tracking-widest">
-                                                WHATSAPP
-                                            </a>
+                            {filteredClients.map(client => (
+                                <div key={client.id} className="bg-white rounded-xl shadow border border-gray-200 overflow-hidden">
+                                    <div className="p-5">
+                                        <div className="flex justify-between items-start mb-3">
+                                            <h3 className="font-bold text-blue-900 uppercase truncate mr-2">{client.fullName}</h3>
+                                            <span className={`text-[10px] font-bold px-2 py-1 rounded uppercase ${getStatusColor(client.status)}`}>
+                                                {client.status || 'LEAD'}
+                                            </span>
                                         </div>
+                                        <div className="bg-yellow-50 border-l-4 border-yellow-400 p-2 mb-4">
+                                            <p className="text-xs font-bold text-gray-800 uppercase italic">"{client.propertyInterest}"</p>
+                                        </div>
+                                        <div className="mb-4">
+                                            <select 
+                                                value={client.status || 'LEAD'} 
+                                                onChange={(e) => updateStatus(client.id, e.target.value)}
+                                                className="w-full p-2 bg-gray-50 border rounded text-xs font-bold"
+                                            >
+                                                <option value="LEAD">LEAD (Novo)</option>
+                                                <option value="AGENDADO">AGENDADO (Visita)</option>
+                                                <option value="PROPOSTA">PROPOSTA (Negócio)</option>
+                                                <option value="FECHADO">FECHADO (Venda)</option>
+                                            </select>
+                                        </div>
+                                        <div className="text-xs text-gray-600 mb-4 border-t pt-2">
+                                            <p>📧 {client.email || 'Sem e-mail'}</p>
+                                            <p className="font-bold text-gray-800">📞 {client.phones?.[0]}</p>
+                                        </div>
+                                        <a href={`https://wa.me/55${client.phones?.[0]?.replace(/\D/g,'')}`} target="_blank" rel="noreferrer" 
+                                           className="block text-center w-full bg-green-500 text-white font-bold py-3 rounded-lg text-xs tracking-widest shadow hover:bg-green-600 transition-colors">
+                                            WHATSAPP
+                                        </a>
                                     </div>
-                                ))
-                            )}
+                                </div>
+                            ))}
                         </div>
                     </>
                 ) : (
-                    <div className="max-w-xl mx-auto bg-white p-8 rounded-3xl shadow-2xl border border-gray-100">
-                        <h2 className="text-3xl font-black mb-6 text-gray-800 uppercase tracking-tighter">Novo Cadastro</h2>
+                    <div className="max-w-lg mx-auto bg-white p-8 rounded-2xl shadow-lg border border-gray-100">
+                        <h2 className="text-2xl font-bold mb-6 text-gray-800 uppercase">Novo Cadastro</h2>
                         <div className="space-y-4">
-                            <input type="text" placeholder="Nome Completo" value={name} onChange={e => setName(e.target.value)} className="w-full p-4 bg-gray-50 border-2 border-gray-100 rounded-xl outline-none focus:border-blue-500 font-bold" />
-                            <input type="text" placeholder="WhatsApp (219XXXXXXXX)" value={phone} onChange={e => setPhone(e.target.value)} className="w-full p-4 bg-gray-50 border-2 border-gray-100 rounded-xl outline-none focus:border-blue-500 font-bold" />
-                            <input type="email" placeholder="E-mail (opcional)" value={email} onChange={e => setEmail(e.target.value)} className="w-full p-4 bg-gray-50 border-2 border-gray-100 rounded-xl outline-none focus:border-blue-500 font-bold" />
-                            <input type="text" placeholder="Imóvel / Perfil de interesse" value={propertyInterest} onChange={e => setPropertyInterest(e.target.value)} className="w-full p-4 bg-yellow-50 border-2 border-yellow-100 rounded-xl outline-none focus:border-yellow-400 font-bold" />
-                            <button onClick={addClient} className="w-full bg-blue-800 hover:bg-blue-900 text-white font-black py-4 rounded-2xl shadow-xl transition-all transform hover:-translate-y-1 mt-4 tracking-widest">SALVAR CLIENTE</button>
+                            <input type="text" placeholder="Nome Completo" value={name} onChange={e => setName(e.target.value)} className="w-full p-4 bg-gray-50 border rounded-xl font-bold outline-none focus:border-blue-500" />
+                            <input type="text" placeholder="WhatsApp (219XXXXXXXX)" value={phone} onChange={e => setPhone(e.target.value)} className="w-full p-4 bg-gray-50 border rounded-xl font-bold outline-none focus:border-blue-500" />
+                            <input type="email" placeholder="E-mail (opcional)" value={email} onChange={e => setEmail(e.target.value)} className="w-full p-4 bg-gray-50 border rounded-xl font-bold outline-none focus:border-blue-500" />
+                            <input type="text" placeholder="Imóvel / Perfil de interesse" value={propertyInterest} onChange={e => setPropertyInterest(e.target.value)} className="w-full p-4 bg-yellow-50 border rounded-xl font-bold outline-none focus:border-yellow-400" />
+                            <button onClick={addClient} className="w-full bg-blue-800 text-white font-bold py-4 rounded-xl shadow-lg hover:bg-blue-900 transition-all">SALVAR CLIENTE</button>
                         </div>
                     </div>
                 )}
