@@ -17,7 +17,6 @@ function App() {
     
     const [clients, setClients] = useState([]);
     const [properties, setProperties] = useState([]);
-    const [editingId, setEditingId] = useState(null);
 
     // CAMPOS GERAIS
     const [name, setName] = useState('');
@@ -72,7 +71,7 @@ function App() {
 
     const resetForm = () => {
         setName(''); setEmail(''); setPhone(''); setPropertyInterest(''); setBirthDate(''); 
-        setObservations(''); setPropPrice(''); setPropAddress(''); setPropLink(''); setPropPdf(''); setPropImg(''); setEditingId(null);
+        setObservations(''); setPropPrice(''); setPropAddress(''); setPropLink(''); setPropPdf(''); setPropImg('');
     };
 
     useEffect(() => {
@@ -89,55 +88,57 @@ function App() {
         return match && (statusFilter === 'TODOS' || c.status === statusFilter);
     });
 
-    if (loading) return <div className="h-screen flex items-center justify-center font-black text-blue-900">CARREGANDO...</div>;
+    if (loading) return <div className="h-screen flex items-center justify-center font-black text-blue-900 animate-pulse uppercase tracking-widest">Carregando Lopes Prime...</div>;
     if (!user) return <Login onLogin={setUser} />;
 
     return (
         <div className="min-h-screen bg-gray-50 pb-20 font-sans text-gray-900">
             <TailwindStyle />
             <header className="bg-blue-900 text-white p-5 shadow-xl flex justify-between items-center sticky top-0 z-50">
-                <h1 className="text-xl font-black italic tracking-tighter">🏠 CRM LOPES PRIME</h1>
-                <button onClick={() => signOut(auth)} className="bg-red-600 px-3 py-1 rounded-lg text-[10px] font-bold">SAIR</button>
+                <h1 className="text-xl font-black italic tracking-tighter uppercase">🏠 CRM LOPES PRIME</h1>
+                <button onClick={() => signOut(auth)} className="bg-red-600 px-3 py-1 rounded-lg text-[10px] font-bold shadow-md active:scale-95 transition">SAIR</button>
             </header>
 
             <nav className="bg-white border-b sticky top-16 z-40 flex flex-wrap justify-center gap-2 p-3 shadow-md">
-                <button onClick={() => setActiveTab('clients')} className={`py-2 px-4 rounded-xl font-black text-[10px] ${activeTab === 'clients' ? 'bg-blue-900 text-white' : 'bg-gray-100 text-gray-400'}`}>👥 CLIENTES</button>
-                <button onClick={() => setActiveTab('properties')} className={`py-2 px-4 rounded-xl font-black text-[10px] ${activeTab === 'properties' ? 'bg-blue-900 text-white' : 'bg-gray-100 text-gray-400'}`}>🏠 IMÓVEIS</button>
-                <button onClick={() => setActiveTab('add-client')} className="py-2 px-4 rounded-xl font-black text-[10px] bg-green-100 text-green-700">➕ NOVO CLIENTE</button>
-                <button onClick={() => setActiveTab('add-property')} className="py-2 px-4 rounded-xl font-black text-[10px] bg-purple-100 text-purple-700">➕ NOVO IMÓVEL</button>
+                <button onClick={() => setActiveTab('clients')} className={`py-2 px-4 rounded-xl font-black text-[10px] uppercase ${activeTab === 'clients' ? 'bg-blue-900 text-white' : 'bg-gray-100 text-gray-400'}`}>👥 Clientes</button>
+                <button onClick={() => setActiveTab('properties')} className={`py-2 px-4 rounded-xl font-black text-[10px] uppercase ${activeTab === 'properties' ? 'bg-blue-900 text-white' : 'bg-gray-100 text-gray-400'}`}>🏠 Imóveis</button>
+                <button onClick={() => setActiveTab('add-client')} className="py-2 px-4 rounded-xl font-black text-[10px] uppercase bg-green-100 text-green-700">➕ Novo Cliente</button>
+                <button onClick={() => setActiveTab('add-property')} className="py-2 px-4 rounded-xl font-black text-[10px] uppercase bg-purple-100 text-purple-700">➕ Novo Imóvel</button>
             </nav>
 
             <main className="max-w-7xl mx-auto p-4 mt-4">
                 {activeTab === 'clients' && (
                     <>
-                        <div className="max-w-2xl mx-auto mb-6 space-y-4">
-                            <input type="text" placeholder="🔍 Buscar cliente ou imóvel..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full p-4 bg-white border-2 rounded-2xl font-bold shadow-md outline-none focus:border-blue-500" />
+                        <div className="max-w-2xl mx-auto mb-8 space-y-4">
+                            <input type="text" placeholder="🔍 Buscar por nome ou imóvel..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full p-4 bg-white border-2 rounded-2xl font-bold shadow-md outline-none focus:border-blue-500" />
                             <div className="flex flex-wrap justify-center gap-2">
                                 {['TODOS', 'LEAD', 'AGENDADO', 'PROPOSTA', 'FECHADO'].map(f => (
-                                    <button key={f} onClick={() => setStatusFilter(f)} className={`px-3 py-1.5 rounded-full text-[9px] font-black border-2 ${statusFilter === f ? 'bg-blue-900 text-white border-blue-900' : 'bg-white text-gray-400 border-gray-100'}`}>{f}</button>
+                                    <button key={f} onClick={() => setStatusFilter(f)} className={`px-4 py-2 rounded-full text-[9px] font-black border-2 transition ${statusFilter === f ? 'bg-blue-900 text-white border-blue-900' : 'bg-white text-gray-400 border-gray-100'}`}>{f}</button>
                                 ))}
                             </div>
                         </div>
 
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                             {filteredClients.map(c => (
-                                <div key={c.id} className="bg-white rounded-3xl shadow-lg p-6 border-t-8 border-blue-900 relative">
+                                <div key={c.id} className="bg-white rounded-[2rem] shadow-lg p-6 border-t-8 border-blue-900 relative hover:shadow-2xl transition duration-300">
                                     <div className="flex justify-between items-start mb-4">
-                                        <h3 className="font-black text-blue-900 uppercase text-lg truncate">{c.fullName}</h3>
-                                        <span className={`text-[8px] font-black px-2 py-1 rounded uppercase ${c.status === 'FECHADO' ? 'bg-green-600' : 'bg-blue-600'} text-white shadow-sm`}>{c.status || 'LEAD'}</span>
+                                        <h3 className="font-black text-blue-900 uppercase text-lg truncate mr-2">{c.fullName}</h3>
+                                        <span className={`text-[9px] font-black px-2 py-1 rounded uppercase ${c.status === 'FECHADO' ? 'bg-green-600' : 'bg-blue-600'} text-white shadow-sm`}>{c.status || 'LEAD'}</span>
                                     </div>
-                                    <div className="bg-yellow-50 border-l-4 border-yellow-400 p-2 mb-4 rounded-r-lg text-[10px] font-black italic uppercase text-gray-800">
+                                    <div className="bg-yellow-50 border-l-4 border-yellow-400 p-3 mb-4 rounded-r-lg text-[10px] font-black italic uppercase text-gray-800 leading-tight">
                                         Interesse: {c.propertyInterest || 'Geral'}
                                     </div>
-                                    <select value={c.status || 'LEAD'} onChange={(e) => updateStatus(c.id, e.target.value)} className="w-full p-2 bg-gray-50 border rounded-lg text-[10px] font-black mb-4 outline-none">
-                                        <option value="LEAD">LEAD</option>
-                                        <option value="AGENDADO">AGENDADO</option>
-                                        <option value="PROPOSTA">PROPOSTA</option>
-                                        <option value="FECHADO">FECHADO</option>
-                                    </select>
-                                    <div className="text-xs font-bold mb-4">📞 {c.phones?.[0]}</div>
-                                    <a href={`https://wa.me/55${c.phones?.[0]?.replace(/\D/g,'')}`} target="_blank" className="block w-full bg-green-500 text-white text-center font-black py-3 rounded-xl shadow-md text-[10px] uppercase tracking-widest mb-2">WhatsApp</a>
-                                    <button onClick={() => deleteDoc(doc(db, 'clients', c.id)).then(() => loadData(user.uid))} className="w-full text-[9px] font-bold text-red-200 hover:text-red-500 uppercase">Excluir</button>
+                                    <div className="space-y-3 mb-6">
+                                        <p className="text-xs font-bold text-gray-600">📞 {c.phones?.[0]}</p>
+                                        <select value={c.status || 'LEAD'} onChange={(e) => updateStatus(c.id, e.target.value)} className="w-full p-2.5 bg-gray-50 border-2 border-gray-100 rounded-xl text-[10px] font-black outline-none focus:border-blue-500">
+                                            <option value="LEAD">LEAD (Novo)</option>
+                                            <option value="AGENDADO">AGENDADO (Visita)</option>
+                                            <option value="PROPOSTA">PROPOSTA (Negócio)</option>
+                                            <option value="FECHADO">FECHADO (Venda)</option>
+                                        </select>
+                                    </div>
+                                    <a href={`https://wa.me/55${c.phones?.[0]?.replace(/\D/g,'')}`} target="_blank" className="flex items-center justify-center w-full bg-green-500 hover:bg-green-600 text-white font-black py-4 rounded-2xl shadow-lg text-[11px] uppercase tracking-widest transition active:scale-95 mb-3">WhatsApp</a>
+                                    <button onClick={() => deleteDoc(doc(db, 'clients', c.id)).then(() => loadData(user.uid))} className="w-full text-[9px] font-black text-red-100 hover:text-red-600 uppercase transition tracking-tighter">Remover do CRM</button>
                                 </div>
                             ))}
                         </div>
@@ -145,18 +146,24 @@ function App() {
                 )}
 
                 {activeTab === 'properties' && (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                         {properties.map(p => (
-                            <div key={p.id} className="bg-white rounded-3xl shadow-xl overflow-hidden border border-gray-100">
-                                {p.image && <img src={p.image} className="h-40 w-full object-cover" alt="imóvel" />}
-                                <div className="p-5">
-                                    <h3 className="font-black text-lg uppercase text-blue-900">{p.title}</h3>
-                                    <p className="text-green-600 font-black text-xl mb-3">{p.price}</p>
-                                    <div className="flex flex-col gap-2">
-                                        {p.link && <a href={p.link} target="_blank" className="bg-blue-100 text-blue-700 text-center py-2 rounded-lg font-black text-[9px] uppercase tracking-widest">Site/Linktree</a>}
-                                        {p.pdf && <a href={p.pdf} target="_blank" className="bg-red-100 text-red-700 text-center py-2 rounded-lg font-black text-[9px] uppercase tracking-widest">Tabela/PDF</a>}
+                            <div key={p.id} className="bg-white rounded-[2rem] shadow-xl overflow-hidden border border-gray-100 flex flex-col hover:shadow-2xl transition duration-300">
+                                {p.image ? (
+                                    <img src={p.image} className="h-56 w-full object-cover" alt="imóvel" />
+                                ) : (
+                                    <div className="h-56 w-full bg-gray-100 flex items-center justify-center text-gray-300 text-4xl">🏠</div>
+                                )}
+                                <div className="p-6 flex flex-col flex-grow">
+                                    <h3 className="font-black text-xl uppercase text-blue-900 mb-1">{p.title}</h3>
+                                    <p className="text-green-600 font-black text-2xl mb-4 tracking-tighter italic">{p.price}</p>
+                                    <p className="text-[10px] font-bold text-gray-400 uppercase mb-5 leading-tight italic">📍 {p.address}</p>
+                                    
+                                    <div className="flex flex-col gap-3 mt-auto">
+                                        {p.link && <a href={p.link} target="_blank" className="bg-blue-600 hover:bg-blue-700 text-white text-center py-3 rounded-xl font-black text-[10px] uppercase tracking-widest shadow-md transition">Abrir Site/Linktree</a>}
+                                        {p.pdf && <a href={p.pdf} target="_blank" className="bg-red-600 hover:bg-red-700 text-white text-center py-3 rounded-xl font-black text-[10px] uppercase tracking-widest shadow-md transition">E-book/Tabela PDF</a>}
+                                        <button onClick={() => deleteDoc(doc(db, 'properties', p.id)).then(() => loadData(user.uid))} className="mt-4 text-[9px] font-black text-gray-300 hover:text-red-500 uppercase transition tracking-widest text-center">Excluir Imóvel</button>
                                     </div>
-                                    <button onClick={() => deleteDoc(doc(db, 'properties', p.id)).then(() => loadData(user.uid))} className="mt-4 text-[9px] font-bold text-gray-200 uppercase">Remover</button>
                                 </div>
                             </div>
                         ))}
@@ -164,32 +171,32 @@ function App() {
                 )}
 
                 {activeTab === 'add-client' && (
-                    <div className="max-w-xl mx-auto bg-white p-8 rounded-[40px] shadow-2xl">
-                        <h2 className="text-2xl font-black mb-6 text-blue-900 text-center uppercase">Novo Cliente</h2>
-                        <div className="space-y-4">
-                            <input type="text" placeholder="Nome Completo" value={name} onChange={e => setName(e.target.value)} className="w-full p-4 bg-gray-50 rounded-2xl font-bold border" />
-                            <input type="text" placeholder="WhatsApp" value={phone} onChange={e => setPhone(e.target.value)} className="w-full p-4 bg-gray-50 rounded-2xl font-bold border" />
-                            <select value={propertyInterest} onChange={e => setPropertyInterest(e.target.value)} className="w-full p-4 bg-yellow-50 rounded-2xl font-black border border-yellow-200 outline-none">
-                                <option value="">Vincular a um Imóvel cadastrado...</option>
+                    <div className="max-w-xl mx-auto bg-white p-10 rounded-[3rem] shadow-2xl border border-gray-100">
+                        <h2 className="text-3xl font-black mb-8 text-blue-900 text-center uppercase tracking-tighter">Novo Cliente</h2>
+                        <div className="space-y-5">
+                            <input type="text" placeholder="Nome Completo" value={name} onChange={e => setName(e.target.value)} className="w-full p-4 bg-gray-50 rounded-2xl font-bold border-2 border-transparent focus:border-blue-500 outline-none transition" />
+                            <input type="text" placeholder="WhatsApp (DDD + Número)" value={phone} onChange={e => setPhone(e.target.value)} className="w-full p-4 bg-gray-50 rounded-2xl font-bold border-2 border-transparent focus:border-blue-500 outline-none transition" />
+                            <select value={propertyInterest} onChange={e => setPropertyInterest(e.target.value)} className="w-full p-4 bg-yellow-50 rounded-2xl font-black border-2 border-yellow-100 outline-none focus:border-yellow-400 transition">
+                                <option value="">Vincular Imóvel da Lista...</option>
                                 {properties.map(p => <option key={p.id} value={p.title}>{p.title}</option>)}
                             </select>
-                            <textarea placeholder="Observações" value={observations} onChange={e => setObservations(e.target.value)} className="w-full p-4 bg-gray-50 rounded-2xl font-bold border h-24" />
-                            <button onClick={addClient} className="w-full bg-blue-900 text-white font-black py-4 rounded-2xl shadow-xl uppercase">Salvar no CRM</button>
+                            <textarea placeholder="Observações do atendimento..." value={observations} onChange={e => setObservations(e.target.value)} className="w-full p-4 bg-gray-50 rounded-2xl font-bold border-2 border-transparent focus:border-blue-500 outline-none h-32 transition" />
+                            <button onClick={addClient} className="w-full bg-blue-900 text-white font-black py-5 rounded-3xl shadow-2xl uppercase tracking-widest text-lg transition hover:bg-black active:scale-95">Salvar no CRM</button>
                         </div>
                     </div>
                 )}
 
                 {activeTab === 'add-property' && (
-                    <div className="max-w-xl mx-auto bg-white p-8 rounded-[40px] shadow-2xl border-t-8 border-purple-700">
-                        <h2 className="text-2xl font-black mb-6 text-purple-900 text-center uppercase italic">Novo Imóvel / Produto</h2>
+                    <div className="max-w-xl mx-auto bg-white p-10 rounded-[3rem] shadow-2xl border-t-8 border-purple-700">
+                        <h2 className="text-3xl font-black mb-8 text-purple-900 text-center uppercase italic tracking-tighter">Cadastrar Produto</h2>
                         <div className="space-y-4">
-                            <input type="text" placeholder="Nome do Empreendimento" value={name} onChange={e => setName(e.target.value)} className="w-full p-4 bg-gray-50 rounded-2xl font-bold border" />
-                            <input type="text" placeholder="Preço" value={propPrice} onChange={e => setPropPrice(formatCurrency(e.target.value))} className="w-full p-4 bg-green-50 rounded-2xl font-black border border-green-200 text-green-700" />
-                            <input type="text" placeholder="Endereço" value={propAddress} onChange={e => setPropAddress(e.target.value)} className="w-full p-4 bg-gray-50 rounded-2xl font-bold border" />
-                            <input type="text" placeholder="Link do Site / Linktree" value={propLink} onChange={e => setPropLink(e.target.value)} className="w-full p-4 bg-blue-50 rounded-2xl font-bold border" />
-                            <input type="text" placeholder="Link do PDF (Tabela/E-book)" value={propPdf} onChange={e => setPropPdf(e.target.value)} className="w-full p-4 bg-red-50 rounded-2xl font-bold border" />
-                            <input type="text" placeholder="Link da Imagem (URL da foto)" value={propImg} onChange={e => setPropImg(e.target.value)} className="w-full p-4 bg-gray-50 rounded-2xl font-bold border" />
-                            <button onClick={addProperty} className="w-full bg-purple-700 text-white font-black py-4 rounded-2xl shadow-xl uppercase tracking-widest font-italic">Cadastrar Imóvel</button>
+                            <input type="text" placeholder="Nome do Empreendimento" value={name} onChange={e => setName(e.target.value)} className="w-full p-4 bg-gray-50 rounded-2xl font-bold border shadow-inner" />
+                            <input type="text" placeholder="Preço Sugerido" value={propPrice} onChange={e => setPropPrice(formatCurrency(e.target.value))} className="w-full p-4 bg-green-50 rounded-2xl font-black border border-green-200 text-green-700 text-xl" />
+                            <input type="text" placeholder="Link da Imagem Principal (URL)" value={propImg} onChange={e => setPropImg(e.target.value)} className="w-full p-4 bg-gray-50 rounded-2xl font-bold border italic" />
+                            <input type="text" placeholder="Endereço Completo" value={propAddress} onChange={e => setPropAddress(e.target.value)} className="w-full p-4 bg-gray-50 rounded-2xl font-bold border" />
+                            <input type="text" placeholder="Link do Site Oficial" value={propLink} onChange={e => setPropLink(e.target.value)} className="w-full p-4 bg-blue-50 rounded-2xl font-bold border" />
+                            <input type="text" placeholder="Link do E-book ou Tabela (PDF)" value={propPdf} onChange={e => setPropPdf(e.target.value)} className="w-full p-4 bg-red-50 rounded-2xl font-bold border" />
+                            <button onClick={addProperty} className="w-full bg-purple-700 text-white font-black py-5 rounded-3xl shadow-2xl uppercase tracking-widest font-italic transition hover:bg-purple-900 active:scale-95">Cadastrar Imóvel</button>
                         </div>
                     </div>
                 )}
