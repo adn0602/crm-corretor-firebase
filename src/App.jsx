@@ -55,7 +55,7 @@ const THEMES = {
         name: 'Cinnamon Orange', 
         primary: '#d97706', 
         secondary: '#f59e0b', 
-        sidebarBg: '#ffffff',
+        sidebarBg: '#ffffff', 
         sidebarText: '#78350f',
         bgLight: '#fffbeb',
         icon: '🟠' 
@@ -64,7 +64,7 @@ const THEMES = {
         name: 'Futura Purple', 
         primary: '#581c87', 
         secondary: '#7e22ce', 
-        sidebarBg: '#ffffff',
+        sidebarBg: '#ffffff', 
         sidebarText: '#581c87',
         bgLight: '#faf5ff',
         icon: '🟣' 
@@ -371,87 +371,43 @@ function App() {
 
                 <div className="animate-fadeIn">
                     
-                    {/* --- DASHBOARD FUTURISTA (ATUALIZADO) --- */}
+                    {/* --- DASHBOARD FUTURISTA --- */}
                     {activeTab === 'dashboard' && (
                         <div className="space-y-10 animate-slideUp">
-                            {/* BANNER DE BOAS VINDAS */}
                             <div className="relative rounded-[4rem] p-12 overflow-hidden shadow-2xl transition-colors duration-500" style={{ background: `linear-gradient(135deg, ${theme.primary} 0%, ${theme.secondary} 100%)` }}>
                                 <div className="absolute top-0 right-0 w-64 h-64 bg-white opacity-10 rounded-full -mr-20 -mt-20 blur-3xl"></div>
                                 <div className="relative z-10 text-white">
                                     <h3 className="text-5xl font-black italic mb-2 uppercase tracking-tighter">Fala, {settings.userName}!</h3>
                                     <p className="text-xl opacity-90 font-bold uppercase tracking-widest italic mb-8">O mercado está aquecido hoje.</p>
-                                    
                                     <div className="flex gap-4 flex-wrap">
                                         <div className="glass-dark p-6 rounded-3xl flex items-center gap-4 min-w-[200px]">
                                             <span className="text-4xl">💰</span>
-                                            <div>
-                                                <p className="text-[10px] uppercase font-bold opacity-70">VGV Total (Carteira)</p>
-                                                <p className="text-xl font-black">{totalVGV.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 })}</p>
-                                            </div>
+                                            <div><p className="text-[10px] uppercase font-bold opacity-70">VGV Total (Carteira)</p><p className="text-xl font-black">{totalVGV.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 })}</p></div>
                                         </div>
                                         <div className="glass-dark p-6 rounded-3xl flex items-center gap-4 min-w-[200px]">
                                             <span className="text-4xl">🔥</span>
-                                            <div>
-                                                <p className="text-[10px] uppercase font-bold opacity-70">Leads Quentes</p>
-                                                <p className="text-xl font-black">{hotLeadsCount} Oportunidades</p>
-                                            </div>
+                                            <div><p className="text-[10px] uppercase font-bold opacity-70">Leads Quentes</p><p className="text-xl font-black">{hotLeadsCount} Oportunidades</p></div>
                                         </div>
                                     </div>
                                 </div>
                             </div>
-
-                            {/* PAINEL DE CONTROLE (DIVIDIDO) */}
                             <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
-                                
-                                {/* COLUNA 1: FUNIL EM TEMPO REAL */}
                                 <div className="lg:col-span-2 bg-white p-10 rounded-[3.5rem] shadow-premium border border-slate-100">
-                                    <div className="flex justify-between items-center mb-8">
-                                        <h4 className="text-xl font-black uppercase italic text-slate-700">Funil em Tempo Real</h4>
-                                        <button onClick={() => setActiveTab('pipeline')} className="text-xs font-bold uppercase text-blue-500 hover:underline">Ver Detalhes</button>
-                                    </div>
+                                    <div className="flex justify-between items-center mb-8"><h4 className="text-xl font-black uppercase italic text-slate-700">Funil em Tempo Real</h4><button onClick={() => setActiveTab('pipeline')} className="text-xs font-bold uppercase text-blue-500 hover:underline">Ver Detalhes</button></div>
                                     <div className="space-y-6">
-                                        {[
-                                            { label: 'Novos Leads', count: clients.filter(c => c.status === 'LEAD').length, total: clients.length, color: 'bg-blue-500' },
-                                            { label: 'Visitas Agendadas', count: clients.filter(c => c.status === 'AGENDADO').length, total: clients.length, color: 'bg-yellow-400' },
-                                            { label: 'Propostas na Mesa', count: clients.filter(c => c.status === 'PROPOSTA').length, total: clients.length, color: 'bg-purple-500' },
-                                            { label: 'Negócios Fechados', count: clients.filter(c => c.status === 'FECHADO').length, total: clients.length, color: 'bg-green-500' }
-                                        ].map((item, idx) => (
-                                            <div key={idx}>
-                                                <div className="flex justify-between text-xs font-bold uppercase mb-2 text-slate-500">
-                                                    <span>{item.label}</span>
-                                                    <span>{item.count} Clientes</span>
-                                                </div>
-                                                <div className="h-4 bg-slate-100 rounded-full overflow-hidden">
-                                                    <div className={`h-full ${item.color} transition-all duration-1000`} style={{ width: `${(item.count / (item.total || 1)) * 100}%` }}></div>
-                                                </div>
-                                            </div>
+                                        {[{ label: 'Novos Leads', count: clients.filter(c => c.status === 'LEAD').length, total: clients.length, color: 'bg-blue-500' }, { label: 'Visitas Agendadas', count: clients.filter(c => c.status === 'AGENDADO').length, total: clients.length, color: 'bg-yellow-400' }, { label: 'Propostas na Mesa', count: clients.filter(c => c.status === 'PROPOSTA').length, total: clients.length, color: 'bg-purple-500' }, { label: 'Negócios Fechados', count: clients.filter(c => c.status === 'FECHADO').length, total: clients.length, color: 'bg-green-500' }].map((item, idx) => (
+                                            <div key={idx}><div className="flex justify-between text-xs font-bold uppercase mb-2 text-slate-500"><span>{item.label}</span><span>{item.count} Clientes</span></div><div className="h-4 bg-slate-100 rounded-full overflow-hidden"><div className={`h-full ${item.color} transition-all duration-1000`} style={{ width: `${(item.count / (item.total || 1)) * 100}%` }}></div></div></div>
                                         ))}
                                     </div>
                                 </div>
-
-                                {/* COLUNA 2: PRÓXIMOS COMPROMISSOS */}
                                 <div className="bg-white p-10 rounded-[3.5rem] shadow-premium border border-slate-100">
                                     <h4 className="text-xl font-black uppercase italic text-slate-700 mb-8">Agenda Hoje</h4>
                                     <div className="space-y-4">
-                                        {todaysAgenda.length === 0 ? (
-                                            <div className="text-center py-10 opacity-40 font-bold uppercase text-sm">Livre por hoje 🏖️</div>
-                                        ) : (
-                                            todaysAgenda.map(task => (
-                                                <div key={task.id} className="p-5 bg-slate-50 rounded-3xl border border-slate-100 flex gap-4 items-center">
-                                                    <div className={`w-2 h-10 rounded-full ${task.type === 'Evento' ? 'bg-blue-500' : 'bg-green-500'}`}></div>
-                                                    <div>
-                                                        <p className="font-black text-sm uppercase text-slate-800">{task.time} - {task.title}</p>
-                                                        <p className="text-[10px] font-bold text-slate-400 uppercase truncate w-32">{task.observations}</p>
-                                                    </div>
-                                                </div>
-                                            ))
-                                        )}
+                                        {todaysAgenda.length === 0 ? (<div className="text-center py-10 opacity-40 font-bold uppercase text-sm">Livre por hoje 🏖️</div>) : (todaysAgenda.map(task => (<div key={task.id} className="p-5 bg-slate-50 rounded-3xl border border-slate-100 flex gap-4 items-center"><div className={`w-2 h-10 rounded-full ${task.type === 'Evento' ? 'bg-blue-500' : 'bg-green-500'}`}></div><div><p className="font-black text-sm uppercase text-slate-800">{task.time} - {task.title}</p><p className="text-[10px] font-bold text-slate-400 uppercase truncate w-32">{task.observations}</p></div></div>)))}
                                         <button onClick={() => setActiveTab('agenda')} className="w-full py-4 mt-4 bg-slate-100 rounded-2xl text-xs font-black uppercase text-slate-400 hover:bg-slate-200 transition">Ver Agenda Completa</button>
                                     </div>
                                 </div>
                             </div>
-
-                            {/* BARRA INFERIOR: ÚLTIMOS CLIENTES (RADAR) */}
                             <div className="bg-white p-8 rounded-[3rem] shadow-premium border border-slate-100">
                                 <h4 className="text-lg font-black uppercase italic text-slate-700 mb-6 ml-4">Radar de Novos Clientes</h4>
                                 <div className="flex gap-6 overflow-x-auto pb-4 scrollbar-hide">
@@ -459,10 +415,7 @@ function App() {
                                         const analysis = analyzeLead(c);
                                         return (
                                             <div key={c.id} className="min-w-[220px] p-6 rounded-[2rem] bg-slate-50 border border-slate-100 flex flex-col gap-2 hover:shadow-lg transition">
-                                                <div className="flex justify-between items-center">
-                                                    <span className="font-black text-xs uppercase truncate w-24">{c.fullName}</span>
-                                                    <span className="text-lg">{analysis.icon}</span>
-                                                </div>
+                                                <div className="flex justify-between items-center"><span className="font-black text-xs uppercase truncate w-24">{c.fullName}</span><span className="text-lg">{analysis.icon}</span></div>
                                                 <p className="text-[10px] font-bold text-slate-400 uppercase">{c.propertyInterest || 'Sem interesse definido'}</p>
                                                 <div className={`text-[9px] font-black uppercase px-2 py-1 rounded-lg w-max ${analysis.color} bg-white`}>{analysis.label}</div>
                                             </div>
@@ -519,7 +472,7 @@ function App() {
                         </div>
                     )}
 
-                    {/* --- CLIENTES (COMPLETO) --- */}
+                    {/* --- CLIENTES (CORRIGIDO) --- */}
                     {activeTab === 'clients' && (
                         <div className="space-y-10">
                             <div className="flex justify-between items-center flex-wrap gap-4">
@@ -531,7 +484,17 @@ function App() {
                                     const ai = analyzeLead(c);
                                     return (
                                         <div key={c.id} className={`bg-white rounded-[3rem] shadow-premium p-10 border border-slate-50 relative hover:shadow-2xl transition duration-500 ${ai.glow}`}>
-                                            <button onClick={() => {setEditingId(c.id); setName(c.fullName); setPhone(c.phones?.[0]); setPropertyInterest(c.propertyInterest); setBirthDate(c.birthDate); setObservations(c.observations); setShowForm(true);}} className="absolute top-6 left-6 text-slate-300 hover:text-blue-600 text-2xl">✏️</button>
+                                            {/* BOTÃO LÁPIS CORRIGIDO - PREVENÇÃO DE NULL */}
+                                            <button onClick={() => {
+                                                setEditingId(c.id);
+                                                setName(c.fullName || '');
+                                                setPhone(c.phones?.[0] || '');
+                                                setPropertyInterest(c.propertyInterest || '');
+                                                setBirthDate(c.birthDate || '');
+                                                setObservations(c.observations || '');
+                                                setShowForm(true);
+                                            }} className="absolute top-6 left-6 text-slate-300 hover:text-blue-600 text-2xl">✏️</button>
+                                            
                                             <div className="flex justify-between items-start mb-6 pt-4">
                                                 <h3 className="font-black uppercase text-2xl truncate ml-8 leading-none tracking-tighter" style={{ color: theme.primary }}>{c.fullName}</h3>
                                                 <span className={`text-[10px] font-black px-3 py-1.5 rounded-xl uppercase ${ai.color} bg-slate-50 shadow-inner`}>{ai.icon} {ai.label}</span>
@@ -556,7 +519,7 @@ function App() {
                         </div>
                     )}
 
-                    {/* --- AGENDA (COMPLETO) --- */}
+                    {/* --- AGENDA --- */}
                     {activeTab === 'agenda' && (
                         <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
                             <div className="lg:col-span-5 space-y-8">
@@ -651,7 +614,7 @@ function App() {
                         </div>
                     )}
 
-                    {/* --- RELATÓRIOS (COMPLETO) --- */}
+                    {/* --- RELATÓRIOS --- */}
                     {activeTab === 'relatorios' && (
                         <div className="space-y-12 animate-fadeIn">
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
@@ -667,7 +630,7 @@ function App() {
                         </div>
                     )}
 
-                    {/* --- CONFIGURAÇÕES (COMPLETO) --- */}
+                    {/* --- CONFIGURAÇÕES --- */}
                     {activeTab === 'settings' && (
                         <div className="space-y-8">
                             <div className="flex flex-wrap gap-4 bg-white p-2 rounded-[2rem] shadow-sm w-max">
@@ -754,7 +717,7 @@ function App() {
                     )}
                 </div>
 
-                {/* MODAL UNIVERSAL */}
+                {/* MODAL UNIVERSAL COM CORREÇÃO DE SALVAMENTO */}
                 {showForm && (
                     <div className="fixed inset-0 z-[100] flex items-center justify-center p-8 bg-slate-900/60 backdrop-blur-md">
                         <div className="glass w-full max-w-2xl p-14 rounded-[4rem] shadow-2xl border-2 border-white/50">
@@ -792,14 +755,31 @@ function App() {
                             <div className="flex gap-6 pt-10">
                                 <button onClick={() => {
                                     playSuccessSound();
+                                    
+                                    // --- LÓGICA DE SALVAMENTO CORRIGIDA (EVITA APAGAR DADOS) ---
                                     if(activeTab === 'clients') {
-                                        if(editingId) updateDoc(doc(db, 'clients', editingId), {fullName: name, phones: [phone], birthDate, propertyInterest, observations}).then(() => {resetForm(); loadData(user.uid);});
-                                        else addDoc(collection(db, 'clients'), {fullName: name, phones: [phone], propertyInterest, observations, birthDate, status: "LEAD", assignedAgent: user.uid, createdAt: new Date()}).then(() => {resetForm(); loadData(user.uid);});
-                                    } else if(activeTab === 'properties') {
-                                        if(editingId) updateDoc(doc(db, 'properties', editingId), {title: name, price: propPrice, image: propImg, link: propLink, pdf: propPdf, address: propAddress}).then(() => {resetForm(); loadData(user.uid);});
-                                        else addDoc(collection(db, 'properties'), {title: name, price: propPrice, image: propImg, link: propLink, pdf: propPdf, address: propAddress, userId: user.uid, createdAt: new Date()}).then(() => {resetForm(); loadData(user.uid);});
-                                    } else {
-                                        addDoc(collection(db, 'agenda'), {title: agendaTitle, date: selectedDate, time: agendaTime, type: agendaType, observations, userId: user.uid, createdAt: new Date()}).then(() => {resetForm(); loadData(user.uid);});
+                                        // Garante que não enviamos undefined
+                                        const cleanData = {
+                                            fullName: name || 'Sem Nome',
+                                            phones: [phone || ''],
+                                            birthDate: birthDate || '',
+                                            propertyInterest: propertyInterest || '',
+                                            observations: observations || ''
+                                        };
+                                        if(editingId) {
+                                            updateDoc(doc(db, 'clients', editingId), cleanData).then(() => {resetForm(); loadData(user.uid);});
+                                        } else {
+                                            addDoc(collection(db, 'clients'), { ...cleanData, status: "LEAD", assignedAgent: user.uid, createdAt: new Date() }).then(() => {resetForm(); loadData(user.uid);});
+                                        }
+                                    } 
+                                    else if(activeTab === 'properties') {
+                                        const cleanProp = { title: name || '', price: propPrice || '', image: propImg || '', link: propLink || '', pdf: propPdf || '', address: propAddress || '' };
+                                        if(editingId) updateDoc(doc(db, 'properties', editingId), cleanProp).then(() => {resetForm(); loadData(user.uid);});
+                                        else addDoc(collection(db, 'properties'), { ...cleanProp, userId: user.uid, createdAt: new Date() }).then(() => {resetForm(); loadData(user.uid);});
+                                    } 
+                                    else {
+                                        const cleanAgenda = { title: agendaTitle || '', date: selectedDate, time: agendaTime || '', type: agendaType, observations: observations || '' };
+                                        addDoc(collection(db, 'agenda'), { ...cleanAgenda, userId: user.uid, createdAt: new Date() }).then(() => {resetForm(); loadData(user.uid);});
                                     }
                                 }} className="flex-1 text-white font-black py-7 rounded-[3rem] shadow-2xl uppercase tracking-widest text-2xl transition hover:scale-105 active:scale-95" style={{ backgroundColor: theme.primary }}>Salvar</button>
                                 <button onClick={resetForm} className="flex-1 bg-slate-100 text-slate-400 font-black py-7 rounded-[3rem] uppercase tracking-widest text-2xl transition hover:bg-slate-200">Cancelar</button>
