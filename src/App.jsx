@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { db, auth } from './firebase/config';
-import { collection, addDoc, getDocs, query, where, updateDoc, doc, deleteDoc } from 'firebase/firestore';
+import { collection, addDoc, getDocs, query, where, updateDoc, doc, deleteDoc, getDoc } from 'firebase/firestore';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
 import Login from './components/Login';
 
@@ -16,16 +16,79 @@ const TailwindStyle = () => (
     .calendar-day:hover { background: #eff6ff; color: #1e3a8a; }
     .calendar-day.active { background: #1e3a8a; color: white; box-shadow: 0 4px 15px rgba(30, 58, 138, 0.3); }
     body { font-size: 16px; background-color: #f3f4f6; }
+    .kanban-col { min-width: 320px; }
     /* Toggle Switch Custom */
     .toggle-checkbox:checked { right: 0; border-color: #22c55e; }
     .toggle-checkbox:checked + .toggle-label { background-color: #22c55e; }
   `}</style>
 );
 
+// --- COMPONENTE PÚBLICO (LANDING PAGE DO IMÓVEL) ---
+const PublicPropertyView = ({ propertyId }) => {
+    const [prop, setProp] = useState(null);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        const fetchProp = async () => {
+            if (!propertyId) return;
+            try {
+                const docRef = doc(db, 'properties', propertyId);
+                const docSnap = await getDoc(docRef);
+                if (docSnap.exists()) setProp(docSnap.data());
+            } catch (e) { console.error(e); }
+            setLoading(false);
+        };
+        fetchProp();
+    }, [propertyId]);
+
+    if (loading) return <div className="min-h-screen flex items-center justify-center text-2xl font-black text-blue-900 animate-pulse">Carregando Imóvel...</div>;
+    if (!prop) return <div className="min-h-screen flex items-center justify-center text-2xl font-black text-slate-400">Imóvel não encontrado.</div>;
+
+    return (
+        <div className="min-h-screen bg-white font-sans text-slate-900">
+            <TailwindStyle />
+            <div className="h-[60vh] w-full relative">
+                {prop.image ? <img src={prop.image.split(',')[0]} className="w-full h-full object-cover" alt="Capa" /> : <div className="w-full h-full bg-slate-200 flex items-center justify-center text-4xl font-black text-slate-300">SEM FOTO</div>}
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent"></div>
+                <div className="absolute bottom-10 left-6 lg:left-20 text-white">
+                    <span className="bg-green-500 px-4 py-2 rounded-full text-xs font-black uppercase tracking-widest mb-4 inline-block">Disponível</span>
+                    <h1 className="text-4xl lg:text-6xl font-black uppercase italic tracking-tighter mb-2">{prop.title}</h1>
+                    <p className="text-2xl lg:text-3xl font-bold opacity-90">{prop.address}</p>
+                </div>
+            </div>
+            <div className="max-w-5xl mx-auto p-8 lg:p-12 -mt-20 relative z-10">
+                <div className="bg-white rounded-[3rem] shadow-2xl p-10 border border-slate-100 flex flex-col lg:flex-row gap-10 items-center">
+                    <div className="flex-1">
+                        <p className="text-slate-400 text-sm font-black uppercase tracking-widest mb-2">Valor de Investimento</p>
+                        <p className="text-5xl lg:text-6xl font-black text-blue-900 tracking-tighter">{prop.price}</p>
+                    </div>
+                    <div className="flex gap-4 w-full lg:w-auto">
+                        <button onClick={() => window.open(`https://wa.me/5521999999999?text=Olá, vi o imóvel ${prop.title} e tenho interesse!`, '_blank')} className="flex-1 bg-green-500 hover:bg-green-600 text-white py-5 px-8 rounded-[2rem] font-black uppercase tracking-widest shadow-xl transition transform hover:scale-105">Agendar Visita</button>
+                        {prop.pdf && <a href={prop.pdf} target="_blank" className="flex-1 bg-blue-900 hover:bg-black text-white py-5 px-8 rounded-[2rem] font-black uppercase tracking-widest text-center shadow-xl transition transform hover:scale-105">Baixar PDF</a>}
+                    </div>
+                </div>
+                <div className="mt-12 space-y-6 text-lg text-slate-600 leading-relaxed font-medium">
+                    <h3 className="text-2xl font-black text-blue-900 uppercase italic">Sobre o Imóvel</h3>
+                    <p>{prop.description || "Entre em contato para mais detalhes sobre esta oportunidade exclusiva."}</p>
+                </div>
+            </div>
+            <footer className="p-10 text-center text-slate-400 text-sm font-bold uppercase tracking-widest mt-10">
+                Apresentado por Alexandre Corretor
+            </footer>
+        </div>
+    );
+};
+
+// --- APP PRINCIPAL ---
 function App() {
+    // Verifica se é Link Público
+    const urlParams = new URLSearchParams(window.location.search);
+    const publicId = urlParams.get('id');
+    const isPublic = urlParams.get('public') === 'true';
+
     const [user, setUser] = useState(null);
     const [loading, setLoading] = useState(true);
-    const [activeTab, setActiveTab] = useState('settings'); // Foco na aba Settings para visualização
+    const [activeTab, setActiveTab] = useState('dashboard');
     const [showForm, setShowForm] = useState(false);
     
     // --- DADOS ---
@@ -103,6 +166,18 @@ function App() {
         link.click();
     };
 
+    const updateClientStatus = async (clientId, newStatus) => {
+        await updateDoc(doc(db, 'clients', clientId), { status: newStatus });
+        loadData(user.uid);
+        playSuccessSound();
+    };
+
+    const generatePublicLink = (propId) => {
+        const url = `${window.location.origin}?public=true&id=${propId}`;
+        navigator.clipboard.writeText(url);
+        alert("Link copiado! Envie para o cliente: " + url);
+    };
+
     const analyzeLead = (client) => {
         const text = (client.observations || "").toLowerCase();
         const status = client.status || "LEAD";
@@ -164,6 +239,9 @@ function App() {
         return () => unsub();
     }, []);
 
+    // RENDERIZAÇÃO DA LANDING PAGE PÚBLICA
+    if (isPublic && publicId) return <PublicPropertyView propertyId={publicId} />;
+
     const filteredClients = clients.filter(c => {
         const match = (c.fullName || "").toLowerCase().includes(searchTerm.toLowerCase()) || (c.propertyInterest || "").toLowerCase().includes(searchTerm.toLowerCase());
         return match && (statusFilter === 'TODOS' || c.status === statusFilter);
@@ -192,6 +270,7 @@ function App() {
                 <nav className="flex-1 px-4 space-y-3">
                     {[
                         { id: 'dashboard', label: 'Dashboard', icon: '📊' },
+                        { id: 'pipeline', label: 'Funil Vendas', icon: '🌪️' }, // Adicionado
                         { id: 'clients', label: 'Clientes', icon: '👥' },
                         { id: 'properties', label: 'Imóveis', icon: '🏠' },
                         { id: 'agenda', label: 'Agenda', icon: '📅' },
@@ -239,7 +318,35 @@ function App() {
                         </div>
                     )}
 
-                    {/* 2. CLIENTES */}
+                    {/* 2. FUNIL DE VENDAS (KANBAN) - ADICIONADO */}
+                    {activeTab === 'pipeline' && (
+                        <div className="flex gap-8 overflow-x-auto pb-8 scrollbar-hide">
+                            {[
+                                { id: 'LEAD', label: 'Novos Leads', color: 'border-blue-500' },
+                                { id: 'AGENDADO', label: 'Visita Agendada', color: 'border-yellow-500' },
+                                { id: 'PROPOSTA', label: 'Em Negociação', color: 'border-purple-500' },
+                                { id: 'FECHADO', label: 'Contrato Fechado', color: 'border-green-500' }
+                            ].map(col => (
+                                <div key={col.id} className="kanban-col bg-white p-6 rounded-[2.5rem] shadow-premium border-t-8 border-slate-100 flex flex-col h-[70vh] min-w-[350px]" style={{borderColor: col.id === 'LEAD' ? '#3b82f6' : col.id === 'AGENDADO' ? '#eab308' : col.id === 'PROPOSTA' ? '#a855f7' : '#22c55e'}}>
+                                    <h3 className="text-xl font-black uppercase italic mb-6 text-slate-700">{col.label} <span className="text-slate-300 ml-2">{clients.filter(c => c.status === col.id).length}</span></h3>
+                                    <div className="flex-1 overflow-y-auto space-y-4 pr-2">
+                                        {clients.filter(c => c.status === col.id).map(c => (
+                                            <div key={c.id} className="bg-slate-50 p-5 rounded-3xl border border-slate-100 hover:shadow-lg transition group">
+                                                <p className="font-black text-blue-900 uppercase text-sm mb-1">{c.fullName}</p>
+                                                <p className="text-[10px] font-bold text-slate-400 uppercase mb-3">🚩 {c.propertyInterest}</p>
+                                                <div className="flex justify-between items-center gap-2">
+                                                    {col.id !== 'LEAD' && <button onClick={() => updateClientStatus(c.id, col.id === 'AGENDADO' ? 'LEAD' : col.id === 'PROPOSTA' ? 'AGENDADO' : 'PROPOSTA')} className="p-2 bg-slate-200 rounded-lg text-[10px] font-bold">◀</button>}
+                                                    {col.id !== 'FECHADO' && <button onClick={() => updateClientStatus(c.id, col.id === 'LEAD' ? 'AGENDADO' : col.id === 'AGENDADO' ? 'PROPOSTA' : 'FECHADO')} className="flex-1 py-2 bg-blue-900 text-white rounded-lg text-[10px] font-bold uppercase hover:bg-black transition">Avançar ▶</button>}
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+
+                    {/* 3. CLIENTES */}
                     {activeTab === 'clients' && (
                         <div className="space-y-10">
                             <div className="flex justify-between items-center flex-wrap gap-4">
@@ -280,7 +387,7 @@ function App() {
                         </div>
                     )}
 
-                    {/* 3. IMÓVEIS */}
+                    {/* 4. IMÓVEIS (COM BOTÃO LINK PÚBLICO) */}
                     {activeTab === 'properties' && (
                         <div className="space-y-12">
                             <div className="flex justify-end"><button onClick={() => setShowForm(true)} className={`${mainColor} text-white px-10 py-5 rounded-[2rem] font-black text-xs uppercase tracking-widest shadow-2xl hover:scale-105 transition`}>+ Novo Imóvel</button></div>
@@ -297,6 +404,7 @@ function App() {
                                             <p className="text-blue-600 font-black text-4xl mb-6 italic tracking-tighter leading-none">{p.price}</p>
                                             <p className="text-sm font-bold text-slate-400 uppercase mb-8 leading-tight italic border-l-4 border-slate-100 pl-4">📍 {p.address}</p>
                                             <div className="mt-auto grid grid-cols-2 gap-4">
+                                                <button onClick={() => generatePublicLink(p.id)} className="col-span-2 bg-yellow-400 text-yellow-900 text-center py-5 rounded-3xl font-black text-[10px] uppercase tracking-widest shadow-xl hover:bg-yellow-500 transition">🔗 Copiar Link Público</button>
                                                 {p.link && <a href={p.link} target="_blank" className="bg-blue-900 text-white text-center py-5 rounded-3xl font-black text-[10px] uppercase tracking-widest shadow-xl hover:bg-black transition">Site</a>}
                                                 {p.pdf && <a href={p.pdf} target="_blank" className="bg-red-600 text-white text-center py-5 rounded-3xl font-black text-[10px] uppercase tracking-widest shadow-xl hover:bg-red-700 transition">PDF</a>}
                                             </div>
@@ -308,7 +416,7 @@ function App() {
                         </div>
                     )}
 
-                    {/* 4. AGENDA */}
+                    {/* 5. AGENDA */}
                     {activeTab === 'agenda' && (
                         <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
                             <div className="lg:col-span-5 space-y-8">
@@ -360,7 +468,7 @@ function App() {
                         </div>
                     )}
 
-                    {/* 5. WHATSAPP */}
+                    {/* 6. WHATSAPP */}
                     {activeTab === 'whatsapp' && (
                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
                             <div className="space-y-8">
@@ -413,7 +521,7 @@ function App() {
                         </div>
                     )}
 
-                    {/* 6. RELATÓRIOS */}
+                    {/* 7. RELATÓRIOS */}
                     {activeTab === 'reports' && (
                         <div className="space-y-12 animate-fadeIn">
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
@@ -429,7 +537,7 @@ function App() {
                         </div>
                     )}
 
-                    {/* 7. CONFIGURAÇÕES (CARTÕES) */}
+                    {/* 8. CONFIGURAÇÕES (CARTÕES) */}
                     {activeTab === 'settings' && (
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10">
                             <div className="bg-white p-10 rounded-[3rem] shadow-premium border border-slate-100">
