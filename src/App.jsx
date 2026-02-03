@@ -26,12 +26,12 @@ const TailwindStyle = () => (
   `}</style>
 );
 
-// --- DEFINIÇÃO DOS TEMAS (COM CORES REAIS PARA GARANTIR A TROCA) ---
+// --- DEFINIÇÃO DOS TEMAS (CORES REAIS) ---
 const THEMES = {
     'blue': { 
         name: 'Lopes Blue', 
-        primary: '#1e3a8a', // Azul Escuro
-        secondary: '#3b82f6', // Azul Claro
+        primary: '#1e3a8a', 
+        secondary: '#3b82f6', 
         sidebarBg: '#ffffff', 
         sidebarText: '#1e3a8a',
         bgLight: '#eff6ff',
@@ -39,16 +39,16 @@ const THEMES = {
     },
     'mint-dark': { 
         name: 'Linux Mint Dark', 
-        primary: '#87cf3e', // Verde Mint Vibrante
+        primary: '#87cf3e', 
         secondary: '#69a72b', 
-        sidebarBg: '#2f2f2f', // Cinza Escuro Mint
+        sidebarBg: '#2f2f2f', 
         sidebarText: '#ffffff',
         bgLight: '#f0fdf4',
         icon: '🟢' 
     },
     'cinnamon': { 
         name: 'Cinnamon Orange', 
-        primary: '#d97706', // Laranja Queimado
+        primary: '#d97706', 
         secondary: '#f59e0b', 
         sidebarBg: '#ffffff',
         sidebarText: '#78350f',
@@ -57,7 +57,7 @@ const THEMES = {
     },
     'purple': { 
         name: 'Futura Purple', 
-        primary: '#581c87', // Roxo Profundo
+        primary: '#581c87', 
         secondary: '#7e22ce', 
         sidebarBg: '#ffffff',
         sidebarText: '#581c87',
@@ -167,7 +167,6 @@ function App() {
     const [bulkMessage, setBulkMessage] = useState('');
     const [selectedClients, setSelectedClients] = useState([]);
 
-    // --- APLICAÇÃO DO TEMA ---
     const theme = THEMES[settings.themeColor] || THEMES['blue'];
 
     const playSuccessSound = () => {
@@ -293,7 +292,6 @@ function App() {
         <div className="min-h-screen bg-[#f3f4f6] flex font-sans text-slate-900 overflow-x-hidden">
             <TailwindStyle />
             
-            {/* SIDEBAR COM COR DINÂMICA VIA STYLE */}
             <aside className="w-20 lg:w-72 border-r border-slate-200 flex flex-col sticky top-0 h-screen z-50 transition-colors duration-500" 
                    style={{ backgroundColor: theme.sidebarBg }}>
                 <div className="p-8 mb-6">
@@ -309,20 +307,12 @@ function App() {
                         { id: 'properties', label: 'Imóveis', icon: '🏠' },
                         { id: 'agenda', label: 'Agenda', icon: '📅' },
                         { id: 'whatsapp', label: 'WhatsApp', icon: '💬' },
-                        { id: 'reports', label: 'Relatórios', icon: '📄' },
+                        { id: 'relatorios', label: 'Relatórios', icon: '📄' },
                         { id: 'settings', label: 'Configuração', icon: '⚙️' }
                     ].map(item => {
                         const isActive = activeTab === item.id;
                         return (
-                            <button 
-                                key={item.id} 
-                                onClick={() => setActiveTab(item.id)} 
-                                className={`w-full flex items-center lg:gap-4 p-5 rounded-[2rem] font-black text-sm transition-all uppercase tracking-widest ${isActive ? 'text-white shadow-xl' : 'hover:bg-black/5'}`}
-                                style={{ 
-                                    backgroundColor: isActive ? theme.primary : 'transparent',
-                                    color: isActive ? '#fff' : (settings.themeColor === 'mint-dark' ? '#aaa' : '#94a3b8')
-                                }}
-                            >
+                            <button key={item.id} onClick={() => setActiveTab(item.id)} className={`w-full flex items-center lg:gap-4 p-5 rounded-[2rem] font-black text-sm transition-all uppercase tracking-widest ${isActive ? 'text-white shadow-xl' : 'hover:bg-black/5'}`} style={{ backgroundColor: isActive ? theme.primary : 'transparent', color: isActive ? '#fff' : (settings.themeColor === 'mint-dark' ? '#aaa' : '#94a3b8') }}>
                                 <span className="text-2xl">{item.icon}</span> <span className="hidden lg:block">{item.label}</span>
                             </button>
                         );
@@ -336,7 +326,7 @@ function App() {
             <main className="flex-1 p-10 overflow-y-auto">
                 <header className="mb-8 flex justify-between items-center bg-white p-6 rounded-3xl border border-white shadow-sm transition-colors duration-500">
                     <h2 className="text-3xl font-black uppercase italic tracking-tighter" style={{ color: theme.primary }}>
-                        {activeTab === 'settings' ? 'Configurações' : activeTab}
+                        {activeTab === 'settings' ? 'Configurações' : activeTab === 'relatorios' ? 'Relatórios' : activeTab}
                     </h2>
                     <div className="flex gap-4 items-center">
                         {activeTab !== 'settings' && <input type="text" placeholder="Pesquisar..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="p-4 bg-slate-100 rounded-2xl font-bold text-lg w-64 lg:w-96 outline-none focus:ring-4 transition-all" style={{ '--tw-ring-color': theme.bgLight }} />}
@@ -346,103 +336,7 @@ function App() {
 
                 <div className="animate-fadeIn">
                     
-                    {/* --- CONFIGURAÇÕES --- */}
-                    {activeTab === 'settings' && (
-                        <div className="space-y-8">
-                            <div className="flex flex-wrap gap-4 bg-white p-2 rounded-[2rem] shadow-sm w-max">
-                                {['perfil', 'seguranca', 'aparencia', 'sistema'].map(tab => (
-                                    <button key={tab} onClick={() => setSettingsTab(tab)} className={`px-8 py-3 rounded-[1.5rem] font-black text-xs uppercase tracking-widest transition-all ${settingsTab === tab ? 'bg-yellow-400 text-yellow-900 shadow-md' : 'text-slate-400 hover:bg-slate-50'}`}>{tab}</button>
-                                ))}
-                            </div>
-
-                            {settingsTab === 'perfil' && (
-                                <div className="bg-white p-10 rounded-[3rem] shadow-premium border border-slate-100 animate-fadeIn">
-                                    <div className="flex items-center gap-8 mb-10">
-                                        <div className="relative group">
-                                            <div className="w-32 h-32 rounded-full bg-slate-100 flex items-center justify-center overflow-hidden border-4 border-white shadow-lg">
-                                                {settings.photo ? <img src={settings.photo} className="w-full h-full object-cover" alt="Perfil" /> : <span className="text-4xl">👤</span>}
-                                            </div>
-                                            <label className="absolute bottom-0 right-0 text-white p-3 rounded-full cursor-pointer shadow-lg hover:brightness-110 transition" style={{ backgroundColor: theme.primary }}>📷 <input type="file" className="hidden" accept="image/*" onChange={handlePhotoUpload} /></label>
-                                        </div>
-                                        <div><h3 className="text-3xl font-black italic" style={{ color: theme.primary }}>{settings.userName} {settings.userSurname}</h3><p className="text-slate-400 font-bold uppercase text-sm">Corretor Imobiliário</p></div>
-                                    </div>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                                        <div><label className="text-xs font-bold uppercase text-slate-400 mb-2 block">Nome</label><input type="text" value={settings.userName} onChange={e => setSettings({...settings, userName: e.target.value})} className="settings-input" /></div>
-                                        <div><label className="text-xs font-bold uppercase text-slate-400 mb-2 block">Sobrenome</label><input type="text" value={settings.userSurname} onChange={e => setSettings({...settings, userSurname: e.target.value})} className="settings-input" /></div>
-                                        <div><label className="text-xs font-bold uppercase text-slate-400 mb-2 block">Email</label><input type="email" value={settings.userEmail} onChange={e => setSettings({...settings, userEmail: e.target.value})} className="settings-input" /></div>
-                                        <div><label className="text-xs font-bold uppercase text-slate-400 mb-2 block">Telefone</label><input type="text" value={settings.userPhone} onChange={e => setSettings({...settings, userPhone: e.target.value})} className="settings-input" /></div>
-                                        <div className="md:col-span-2"><label className="text-xs font-bold uppercase text-slate-400 mb-2 block">Endereço Completo</label><input type="text" value={settings.userAddress} onChange={e => setSettings({...settings, userAddress: e.target.value})} className="settings-input" /></div>
-                                        <div><label className="text-xs font-bold uppercase text-slate-400 mb-2 block">CRECI</label><input type="text" value={settings.creci} onChange={e => setSettings({...settings, creci: e.target.value})} className="settings-input" /></div>
-                                    </div>
-                                    <div className="mt-8 flex justify-end"><button onClick={() => alert('Perfil Salvo!')} className="text-white px-10 py-4 rounded-[2rem] font-black uppercase tracking-widest shadow-xl hover:scale-105 transition" style={{ backgroundColor: theme.primary }}>Salvar Alterações</button></div>
-                                </div>
-                            )}
-
-                            {settingsTab === 'seguranca' && (
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 animate-fadeIn">
-                                    <div className="bg-white p-10 rounded-[3rem] shadow-premium border border-slate-100">
-                                        <h3 className="text-xl font-black uppercase italic mb-6" style={{ color: theme.primary }}>Trocar Senha</h3>
-                                        <div className="space-y-4">
-                                            <input type="password" placeholder="Nova Senha" value={newPassword} onChange={e => setNewPassword(e.target.value)} className="settings-input" />
-                                            <button onClick={handleUpdatePassword} className="w-full bg-slate-900 text-white py-4 rounded-xl font-black uppercase text-xs shadow-lg hover:bg-black transition">Atualizar Senha</button>
-                                        </div>
-                                    </div>
-                                    <div className="bg-white p-10 rounded-[3rem] shadow-premium border border-slate-100">
-                                        <h3 className="text-xl font-black uppercase italic mb-6" style={{ color: theme.primary }}>Backup de Dados</h3>
-                                        <div className="flex flex-col gap-4">
-                                            <button onClick={() => exportData('clients')} className="bg-green-100 text-green-700 py-4 rounded-xl font-black uppercase text-xs hover:bg-green-200 transition">📥 Baixar Clientes</button>
-                                            <button onClick={() => exportData('properties')} className="bg-blue-100 text-blue-700 py-4 rounded-xl font-black uppercase text-xs hover:bg-blue-200 transition">📥 Baixar Imóveis</button>
-                                        </div>
-                                    </div>
-                                </div>
-                            )}
-
-                            {settingsTab === 'aparencia' && (
-                                <div className="bg-white p-10 rounded-[3rem] shadow-premium border border-slate-100 animate-fadeIn">
-                                    <h3 className="text-xl font-black uppercase italic mb-8" style={{ color: theme.primary }}>Temas do Sistema</h3>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                                        {Object.entries(THEMES).map(([key, t]) => (
-                                            <button 
-                                                key={key} 
-                                                onClick={() => setSettings({...settings, themeColor: key})}
-                                                className={`relative p-6 rounded-2xl border-2 transition-all duration-300 flex flex-col items-center justify-center gap-3 group ${settings.themeColor === key ? 'bg-slate-50 ring-2 ring-offset-2 ring-slate-200' : 'bg-white border-slate-100 hover:border-slate-300'}`}
-                                                style={{ borderColor: settings.themeColor === key ? t.primary : '' }}
-                                            >
-                                                <span className="text-4xl">{t.icon}</span>
-                                                <div className="text-center">
-                                                    <p className="font-black text-slate-700 uppercase text-xs">{t.name}</p>
-                                                </div>
-                                                <div className="flex gap-1 mt-2">
-                                                    <div className="w-4 h-4 rounded-full" style={{ background: t.primary }}></div>
-                                                    <div className="w-4 h-4 rounded-full" style={{ background: t.sidebarBg, border: '1px solid #ddd' }}></div>
-                                                </div>
-                                            </button>
-                                        ))}
-                                    </div>
-                                    <div className="mt-8 p-6 bg-slate-50 rounded-2xl flex items-center justify-between">
-                                        <div><h4 className="font-bold text-slate-700 uppercase">Sons de Efeito</h4><p className="text-xs text-slate-400 font-bold">Feedback sonoro ao salvar</p></div>
-                                        <div className="relative inline-block w-14 align-middle select-none"><input type="checkbox" checked={settings.soundEnabled} onChange={() => setSettings({...settings, soundEnabled: !settings.soundEnabled})} className="toggle-checkbox absolute block w-8 h-8 rounded-full bg-white border-4 appearance-none cursor-pointer border-slate-200"/><label className={`toggle-label block overflow-hidden h-8 rounded-full cursor-pointer ${settings.soundEnabled ? 'bg-green-400' : 'bg-slate-300'}`}></label></div>
-                                    </div>
-                                </div>
-                            )}
-
-                            {settingsTab === 'sistema' && (
-                                <div className="bg-white p-10 rounded-[3rem] shadow-premium border border-slate-100 animate-fadeIn">
-                                    <h3 className="text-xl font-black uppercase italic mb-8" style={{ color: theme.primary }}>Preferências</h3>
-                                    <div className="space-y-4">
-                                        {['Notificações por Email', 'Alerta de Novos Leads', 'Lembretes de Agenda'].map((l, i) => (
-                                            <div key={i} className="flex justify-between items-center p-4 bg-slate-50 rounded-xl">
-                                                <span className="font-bold text-slate-600 uppercase text-sm">{l}</span>
-                                                <div className="w-10 h-5 bg-green-400 rounded-full relative"><div className="w-5 h-5 bg-white rounded-full absolute right-0"></div></div>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-                    )}
-
-                    {/* --- DASHBOARD COM COR DINÂMICA --- */}
+                    {/* --- DASHBOARD --- */}
                     {activeTab === 'dashboard' && (
                         <div className="space-y-12">
                             <div className="rounded-[4rem] p-12 text-white shadow-2xl relative overflow-hidden transition-colors duration-500" style={{ backgroundColor: theme.primary }}>
@@ -524,6 +418,187 @@ function App() {
                         </div>
                     )}
 
+                    {/* --- AGENDA (RESTAURADA) --- */}
+                    {activeTab === 'agenda' && (
+                        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
+                            <div className="lg:col-span-5 space-y-8">
+                                <div className="bg-white p-10 rounded-[3.5rem] shadow-premium">
+                                    <div className="flex justify-between items-center mb-10 text-xl font-black uppercase italic" style={{ color: theme.primary }}>
+                                        <button onClick={() => setCurrentMonth(new Date(currentMonth.setMonth(currentMonth.getMonth() - 1)))} className="p-4 bg-slate-50 rounded-full hover:bg-slate-100">◀</button>
+                                        <span>{currentMonth.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}</span>
+                                        <button onClick={() => setCurrentMonth(new Date(currentMonth.setMonth(currentMonth.getMonth() + 1)))} className="p-4 bg-slate-50 rounded-full hover:bg-slate-100">▶</button>
+                                    </div>
+                                    <div className="calendar-grid mb-6 text-xs font-black text-slate-300 uppercase text-center">{['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'].map(d => <div key={d}>{d}</div>)}</div>
+                                    <div className="calendar-grid">
+                                        {generateCalendarDays().map((day, idx) => {
+                                            if (!day) return <div key={idx}></div>;
+                                            const dateStr = `${currentMonth.getFullYear()}-${String(currentMonth.getMonth() + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                                            const hasEvents = agenda.some(a => a.date === dateStr);
+                                            return (
+                                                <div key={idx} onClick={() => setSelectedDate(dateStr)} className={`calendar-day ${selectedDate === dateStr ? 'text-white shadow-lg' : ''}`} style={{ backgroundColor: selectedDate === dateStr ? theme.primary : 'transparent' }}>
+                                                    {day}
+                                                    {hasEvents && <div className={`w-1.5 h-1.5 rounded-full mt-1 ${selectedDate === dateStr ? 'bg-white' : 'bg-blue-500'}`}></div>}
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                                <button onClick={() => setShowForm(true)} className="w-full text-white py-6 rounded-[2.5rem] font-black text-xs uppercase tracking-widest shadow-2xl transition hover:scale-105" style={{ backgroundColor: theme.primary }}>+ Novo Compromisso</button>
+                            </div>
+                            <div className="lg:col-span-7 bg-white p-12 rounded-[4rem] shadow-premium min-h-[600px]">
+                                <h3 className="text-3xl font-black uppercase italic mb-10 border-b border-slate-100 pb-8 flex justify-between items-center" style={{ color: theme.primary }}>
+                                    {new Date(selectedDate + 'T00:00:00').toLocaleDateString('pt-BR')}
+                                    <span className="text-xs not-italic text-slate-400 uppercase font-black">{agenda.filter(a => a.date === selectedDate).length} Atividades</span>
+                                </h3>
+                                <div className="space-y-8">
+                                    {agenda.filter(a => a.date === selectedDate).map(item => (
+                                        <div key={item.id} className="group bg-slate-50 p-10 rounded-[3rem] border border-slate-100 flex items-center gap-10 hover:shadow-2xl transition-all duration-300">
+                                            <div className={`w-3 h-20 rounded-full ${item.type === 'Evento' ? 'bg-blue-500' : 'bg-green-500'}`}></div>
+                                            <div className="flex-1">
+                                                <h4 className="font-black uppercase text-3xl tracking-tighter leading-none mb-2" style={{ color: theme.primary }}>{item.title}</h4>
+                                                <p className="text-sm font-black text-slate-500 uppercase tracking-wide">🕒 {item.time || 'Sem hora'} | 📍 {item.observations}</p>
+                                            </div>
+                                            <button onClick={() => deleteDoc(doc(db, 'agenda', item.id)).then(() => loadData(user.uid))} className="opacity-0 group-hover:opacity-100 text-red-300 hover:text-red-500 font-bold uppercase text-[9px] transition">Excluir</button>
+                                        </div>
+                                    ))}
+                                    {agenda.filter(a => a.date === selectedDate).length === 0 && <div className="text-center py-20 text-slate-200 font-black italic uppercase text-2xl opacity-20">Nenhum registro</div>}
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* --- WHATSAPP (RESTAURADO) --- */}
+                    {activeTab === 'whatsapp' && (
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
+                            <div className="space-y-8">
+                                <div className="bg-white p-10 rounded-[3rem] shadow-premium border border-slate-100">
+                                    <h3 className="text-2xl font-black uppercase italic mb-8" style={{ color: theme.primary }}>Envio Individual</h3>
+                                    <div className="space-y-6">
+                                        <input type="text" placeholder="DDD + Número" value={wpNumber} onChange={e => setWpNumber(e.target.value)} className="w-full p-6 bg-slate-50 rounded-3xl font-bold border-none" />
+                                        <textarea placeholder="Mensagem..." value={wpMessage} onChange={e => setWpMessage(e.target.value)} className="w-full p-6 bg-slate-50 rounded-3xl font-bold h-40 border-none shadow-inner text-lg" />
+                                        <button onClick={() => sendWp(wpNumber, wpMessage)} className="w-full bg-green-500 text-white py-6 rounded-[2.5rem] font-black uppercase tracking-widest shadow-xl hover:bg-green-600 transition">🚀 Enviar</button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="space-y-8">
+                                <div className="bg-white p-10 rounded-[3rem] shadow-premium border border-slate-100">
+                                    <h3 className="text-2xl font-black uppercase italic mb-8" style={{ color: theme.primary }}>Envio em Massa ({selectedClients.length})</h3>
+                                    <div className="max-h-60 overflow-y-auto space-y-3 mb-6 p-4 bg-slate-50 rounded-3xl">
+                                        {clients.map(c => (
+                                            <label key={c.id} className="flex items-center gap-4 p-4 bg-white rounded-2xl cursor-pointer hover:bg-blue-50 transition">
+                                                <input type="checkbox" className="w-6 h-6" onChange={(e) => { const num = c.phones?.[0]; if(e.target.checked) setSelectedClients([...selectedClients, num]); else setSelectedClients(selectedClients.filter(n => n !== num)); }} />
+                                                <div className="text-sm font-bold uppercase">{c.fullName}</div>
+                                            </label>
+                                        ))}
+                                    </div>
+                                    <textarea placeholder="Mensagem para todos..." value={bulkMessage} onChange={e => setBulkMessage(e.target.value)} className="w-full p-6 bg-yellow-300 rounded-3xl font-black text-slate-900 h-32 border-none shadow-inner text-lg mb-4" />
+                                    <button onClick={handleBulkSend} className="w-full text-white py-6 rounded-[2.5rem] font-black uppercase tracking-widest shadow-xl hover:opacity-90 transition" style={{ backgroundColor: theme.primary }}>📤 Disparar</button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* --- RELATÓRIOS (RESTAURADO E RENOMEADO) --- */}
+                    {activeTab === 'relatorios' && (
+                        <div className="space-y-12 animate-fadeIn">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+                                <div className="bg-white p-10 rounded-[3rem] shadow-premium">
+                                    <p className="text-slate-400 text-xs font-black uppercase mb-4 tracking-widest">Conversão de Vendas</p>
+                                    <p className="text-6xl font-black" style={{ color: theme.primary }}>{clients.length > 0 ? ((clients.filter(c => c.status === 'FECHADO').length / clients.length) * 100).toFixed(1) : 0}%</p>
+                                </div>
+                                <div className="bg-white p-10 rounded-[3rem] shadow-premium">
+                                    <p className="text-slate-400 text-xs font-black uppercase mb-4 tracking-widest">Ticket Médio Estimado</p>
+                                    <p className="text-6xl font-black text-green-600">R$ 245K</p>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* --- CONFIGURAÇÕES --- */}
+                    {activeTab === 'settings' && (
+                        <div className="space-y-8">
+                            <div className="flex flex-wrap gap-4 bg-white p-2 rounded-[2rem] shadow-sm w-max">
+                                {['perfil', 'seguranca', 'aparencia', 'sistema'].map(tab => (
+                                    <button key={tab} onClick={() => setSettingsTab(tab)} className={`px-8 py-3 rounded-[1.5rem] font-black text-xs uppercase tracking-widest transition-all ${settingsTab === tab ? 'bg-yellow-400 text-yellow-900 shadow-md' : 'text-slate-400 hover:bg-slate-50'}`}>{tab}</button>
+                                ))}
+                            </div>
+
+                            {settingsTab === 'perfil' && (
+                                <div className="bg-white p-10 rounded-[3rem] shadow-premium border border-slate-100 animate-fadeIn">
+                                    <div className="flex items-center gap-8 mb-10">
+                                        <div className="relative group">
+                                            <div className="w-32 h-32 rounded-full bg-slate-100 flex items-center justify-center overflow-hidden border-4 border-white shadow-lg">
+                                                {settings.photo ? <img src={settings.photo} className="w-full h-full object-cover" alt="Perfil" /> : <span className="text-4xl">👤</span>}
+                                            </div>
+                                            <label className="absolute bottom-0 right-0 text-white p-3 rounded-full cursor-pointer shadow-lg hover:brightness-110 transition" style={{ backgroundColor: theme.primary }}>📷 <input type="file" className="hidden" accept="image/*" onChange={handlePhotoUpload} /></label>
+                                        </div>
+                                        <div><h3 className="text-3xl font-black italic" style={{ color: theme.primary }}>{settings.userName} {settings.userSurname}</h3><p className="text-slate-400 font-bold uppercase text-sm">Corretor Imobiliário</p></div>
+                                    </div>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                        <div><label className="text-xs font-bold uppercase text-slate-400 mb-2 block">Nome</label><input type="text" value={settings.userName} onChange={e => setSettings({...settings, userName: e.target.value})} className="settings-input" /></div>
+                                        <div><label className="text-xs font-bold uppercase text-slate-400 mb-2 block">Sobrenome</label><input type="text" value={settings.userSurname} onChange={e => setSettings({...settings, userSurname: e.target.value})} className="settings-input" /></div>
+                                        <div><label className="text-xs font-bold uppercase text-slate-400 mb-2 block">Email</label><input type="email" value={settings.userEmail} onChange={e => setSettings({...settings, userEmail: e.target.value})} className="settings-input" /></div>
+                                        <div><label className="text-xs font-bold uppercase text-slate-400 mb-2 block">Telefone</label><input type="text" value={settings.userPhone} onChange={e => setSettings({...settings, userPhone: e.target.value})} className="settings-input" /></div>
+                                        <div className="md:col-span-2"><label className="text-xs font-bold uppercase text-slate-400 mb-2 block">Endereço Completo</label><input type="text" value={settings.userAddress} onChange={e => setSettings({...settings, userAddress: e.target.value})} className="settings-input" /></div>
+                                        <div><label className="text-xs font-bold uppercase text-slate-400 mb-2 block">CRECI</label><input type="text" value={settings.creci} onChange={e => setSettings({...settings, creci: e.target.value})} className="settings-input" /></div>
+                                    </div>
+                                    <div className="mt-8 flex justify-end"><button onClick={() => alert('Perfil Salvo!')} className="text-white px-10 py-4 rounded-[2rem] font-black uppercase tracking-widest shadow-xl hover:scale-105 transition" style={{ backgroundColor: theme.primary }}>Salvar Alterações</button></div>
+                                </div>
+                            )}
+
+                            {settingsTab === 'seguranca' && (
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 animate-fadeIn">
+                                    <div className="bg-white p-10 rounded-[3rem] shadow-premium border border-slate-100">
+                                        <h3 className="text-xl font-black uppercase italic mb-6" style={{ color: theme.primary }}>Trocar Senha</h3>
+                                        <div className="space-y-4">
+                                            <input type="password" placeholder="Nova Senha" value={newPassword} onChange={e => setNewPassword(e.target.value)} className="settings-input" />
+                                            <button onClick={handleUpdatePassword} className="w-full bg-slate-900 text-white py-4 rounded-xl font-black uppercase text-xs shadow-lg hover:bg-black transition">Atualizar Senha</button>
+                                        </div>
+                                    </div>
+                                    <div className="bg-white p-10 rounded-[3rem] shadow-premium border border-slate-100">
+                                        <h3 className="text-xl font-black uppercase italic mb-6" style={{ color: theme.primary }}>Backup de Dados</h3>
+                                        <div className="flex flex-col gap-4">
+                                            <button onClick={() => exportData('clients')} className="bg-green-100 text-green-700 py-4 rounded-xl font-black uppercase text-xs hover:bg-green-200 transition">📥 Baixar Clientes</button>
+                                            <button onClick={() => exportData('properties')} className="bg-blue-100 text-blue-700 py-4 rounded-xl font-black uppercase text-xs hover:bg-blue-200 transition">📥 Baixar Imóveis</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
+                            {settingsTab === 'aparencia' && (
+                                <div className="bg-white p-10 rounded-[3rem] shadow-premium border border-slate-100 animate-fadeIn">
+                                    <h3 className="text-xl font-black uppercase italic mb-8" style={{ color: theme.primary }}>Temas do Sistema</h3>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                                        {Object.entries(THEMES).map(([key, t]) => (
+                                            <button key={key} onClick={() => setSettings({...settings, themeColor: key})} className={`relative p-6 rounded-2xl border-2 transition-all duration-300 flex flex-col items-center justify-center gap-3 group ${settings.themeColor === key ? 'bg-slate-50 ring-2 ring-offset-2 ring-slate-200' : 'bg-white border-slate-100 hover:border-slate-300'}`} style={{ borderColor: settings.themeColor === key ? t.primary : '' }}>
+                                                <span className="text-4xl">{t.icon}</span>
+                                                <div className="text-center"><p className="font-black text-slate-700 uppercase text-xs">{t.name}</p></div>
+                                                <div className="flex gap-1 mt-2"><div className="w-4 h-4 rounded-full" style={{ background: t.primary }}></div><div className="w-4 h-4 rounded-full" style={{ background: t.sidebarBg, border: '1px solid #ddd' }}></div></div>
+                                            </button>
+                                        ))}
+                                    </div>
+                                    <div className="mt-8 p-6 bg-slate-50 rounded-2xl flex items-center justify-between">
+                                        <div><h4 className="font-bold text-slate-700 uppercase">Sons de Efeito</h4><p className="text-xs text-slate-400 font-bold">Feedback sonoro ao salvar</p></div>
+                                        <div className="relative inline-block w-14 align-middle select-none"><input type="checkbox" checked={settings.soundEnabled} onChange={() => setSettings({...settings, soundEnabled: !settings.soundEnabled})} className="toggle-checkbox absolute block w-8 h-8 rounded-full bg-white border-4 appearance-none cursor-pointer border-slate-200"/><label className={`toggle-label block overflow-hidden h-8 rounded-full cursor-pointer ${settings.soundEnabled ? 'bg-green-400' : 'bg-slate-300'}`}></label></div>
+                                    </div>
+                                </div>
+                            )}
+
+                            {settingsTab === 'sistema' && (
+                                <div className="bg-white p-10 rounded-[3rem] shadow-premium border border-slate-100 animate-fadeIn">
+                                    <h3 className="text-xl font-black uppercase italic mb-8" style={{ color: theme.primary }}>Preferências</h3>
+                                    <div className="space-y-4">
+                                        {['Notificações por Email', 'Alerta de Novos Leads', 'Lembretes de Agenda'].map((l, i) => (
+                                            <div key={i} className="flex justify-between items-center p-4 bg-slate-50 rounded-xl">
+                                                <span className="font-bold text-slate-600 uppercase text-sm">{l}</span>
+                                                <div className="w-10 h-5 bg-green-400 rounded-full relative"><div className="w-5 h-5 bg-white rounded-full absolute right-0"></div></div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    )}
                 </div>
 
                 {/* MODAL UNIVERSAL */}
@@ -533,20 +608,45 @@ function App() {
                             <h2 className="text-4xl font-black mb-12 uppercase italic tracking-tighter text-center leading-none" style={{ color: theme.primary }}>{activeTab === 'clients' ? 'Novo Cliente' : 'Novo Registro'}</h2>
                             <div className="space-y-6 max-h-[60vh] overflow-y-auto px-2 scrollbar-hide">
                                 <input type="text" placeholder={activeTab === 'agenda' ? "Título do Compromisso" : "Nome / Título"} value={activeTab === 'agenda' ? agendaTitle : name} onChange={e => activeTab === 'agenda' ? setAgendaTitle(e.target.value) : setName(e.target.value)} className="w-full p-6 bg-white rounded-3xl font-black text-xl border-none shadow-inner" />
-                                {/* Campos simplificados para não estourar o limite, adicione conforme necessidade */}
+                                
+                                {activeTab === 'clients' && (
+                                    <>
+                                        <input type="text" placeholder="WhatsApp (219...)" value={phone} onChange={e => setPhone(e.target.value)} className="w-full p-6 bg-white rounded-3xl font-black text-xl border-none shadow-inner" />
+                                        <input type="date" value={birthDate} onChange={e => setBirthDate(e.target.value)} className="w-full p-6 bg-white rounded-3xl font-black text-xl border-none shadow-inner uppercase" />
+                                        <select value={propertyInterest} onChange={e => setPropertyInterest(e.target.value)} className="w-full p-6 bg-yellow-50 rounded-3xl font-black text-xl border-none shadow-sm outline-none"><option value="">Interesse em...</option>{properties.map(p => <option key={p.id} value={p.title}>{p.title}</option>)}</select>
+                                    </>
+                                )}
+
+                                {activeTab === 'properties' && (
+                                    <>
+                                        <input type="text" placeholder="Valor (R$)" value={propPrice} onChange={e => setPropPrice(formatCurrency(e.target.value))} className="w-full p-6 bg-green-50 rounded-3xl font-black text-xl text-green-700 border-none shadow-inner" />
+                                        <input type="text" placeholder="URL da Foto" value={propImg} onChange={e => setPropImg(e.target.value)} className="w-full p-6 bg-white rounded-3xl font-bold italic border-none shadow-inner text-sm" />
+                                        <input type="text" placeholder="Endereço" value={propAddress} onChange={e => setPropAddress(e.target.value)} className="w-full p-6 bg-white rounded-3xl font-bold border-none shadow-inner text-lg" />
+                                        <input type="text" placeholder="Link Site" value={propLink} onChange={e => setPropLink(e.target.value)} className="w-full p-6 bg-blue-50 rounded-3xl font-bold border-none shadow-inner text-sm" />
+                                        <input type="text" placeholder="Link PDF" value={propPdf} onChange={e => setPropPdf(e.target.value)} className="w-full p-6 bg-red-50 rounded-3xl font-bold border-none shadow-inner text-sm" />
+                                    </>
+                                )}
+
+                                {activeTab === 'agenda' && (
+                                    <div className="grid grid-cols-2 gap-6">
+                                        <input type="time" value={agendaTime} onChange={e => setAgendaTime(e.target.value)} className="w-full p-6 bg-white rounded-3xl font-black text-xl border-none" />
+                                        <select value={agendaType} onChange={e => setAgendaType(e.target.value)} className="w-full p-6 bg-slate-100 rounded-3xl font-black text-xl border-none"><option value="Tarefa">Tarefa</option><option value="Evento">Evento</option></select>
+                                    </div>
+                                )}
+
+                                <textarea placeholder="Observações / Detalhes..." value={observations} onChange={e => setObservations(e.target.value)} className="w-full p-6 bg-white rounded-3xl font-bold h-40 border-none shadow-inner text-xl" />
                             </div>
                             <div className="flex gap-6 pt-10">
                                 <button onClick={() => {
                                     playSuccessSound();
-                                    // (Logica de salvar mantida)
                                     if(activeTab === 'clients') {
-                                        if(editingId) updateDoc(doc(db, 'clients', editingId), {fullName: name, phones: [phone]}).then(() => {resetForm(); loadData(user.uid);});
-                                        else addDoc(collection(db, 'clients'), {fullName: name, phones: [phone], status: "LEAD", assignedAgent: user.uid, createdAt: new Date()}).then(() => {resetForm(); loadData(user.uid);});
+                                        if(editingId) updateDoc(doc(db, 'clients', editingId), {fullName: name, phones: [phone], birthDate, propertyInterest, observations}).then(() => {resetForm(); loadData(user.uid);});
+                                        else addDoc(collection(db, 'clients'), {fullName: name, phones: [phone], propertyInterest, observations, birthDate, status: "LEAD", assignedAgent: user.uid, createdAt: new Date()}).then(() => {resetForm(); loadData(user.uid);});
                                     } else if(activeTab === 'properties') {
-                                        if(editingId) updateDoc(doc(db, 'properties', editingId), {title: name, price: propPrice, image: propImg}).then(() => {resetForm(); loadData(user.uid);});
-                                        else addDoc(collection(db, 'properties'), {title: name, price: propPrice, image: propImg, userId: user.uid, createdAt: new Date()}).then(() => {resetForm(); loadData(user.uid);});
+                                        if(editingId) updateDoc(doc(db, 'properties', editingId), {title: name, price: propPrice, image: propImg, link: propLink, pdf: propPdf, address: propAddress}).then(() => {resetForm(); loadData(user.uid);});
+                                        else addDoc(collection(db, 'properties'), {title: name, price: propPrice, image: propImg, link: propLink, pdf: propPdf, address: propAddress, userId: user.uid, createdAt: new Date()}).then(() => {resetForm(); loadData(user.uid);});
                                     } else {
-                                        addDoc(collection(db, 'agenda'), {title: agendaTitle, date: selectedDate, userId: user.uid, createdAt: new Date()}).then(() => {resetForm(); loadData(user.uid);});
+                                        addDoc(collection(db, 'agenda'), {title: agendaTitle, date: selectedDate, time: agendaTime, type: agendaType, observations, userId: user.uid, createdAt: new Date()}).then(() => {resetForm(); loadData(user.uid);});
                                     }
                                 }} className="flex-1 text-white font-black py-7 rounded-[3rem] shadow-2xl uppercase tracking-widest text-2xl transition hover:scale-105 active:scale-95" style={{ backgroundColor: theme.primary }}>Salvar</button>
                                 <button onClick={resetForm} className="flex-1 bg-slate-100 text-slate-400 font-black py-7 rounded-[3rem] uppercase tracking-widest text-2xl transition hover:bg-slate-200">Cancelar</button>
