@@ -4,15 +4,16 @@ import { collection, addDoc, getDocs, query, where, updateDoc, doc, deleteDoc, g
 import { onAuthStateChanged, signOut, updatePassword } from 'firebase/auth';
 import Login from './components/Login';
 
-// --- ESTILOS GLOBAIS ---
+// --- ESTILOS GLOBAIS (CSS) ---
 const TailwindStyle = () => (
   <style>{`
     @import url('https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css');
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap');
     
     body { font-family: 'Inter', sans-serif; background-color: #f3f4f6; }
-    .glass { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.5); }
-    .shadow-premium { box-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.08); }
+    .glass { background: rgba(255, 255, 255, 0.75); backdrop-filter: blur(16px); border: 1px solid rgba(255, 255, 255, 0.5); }
+    .glass-dark { background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(16px); border: 1px solid rgba(255, 255, 255, 0.1); color: white; }
+    .shadow-premium { box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.15); }
     .scrollbar-hide::-webkit-scrollbar { display: none; }
     .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
     .calendar-day { aspect-ratio: 1 / 1; display: flex; flex-direction: column; align-items: center; justify-content: center; border-radius: 12px; font-size: 16px; font-weight: 800; cursor: pointer; transition: all 0.2s; }
@@ -20,13 +21,17 @@ const TailwindStyle = () => (
     .settings-input { width: 100%; padding: 1rem; background-color: #f8fafc; border-radius: 1rem; border: 1px solid #e2e8f0; font-weight: 700; color: #1e293b; outline: none; transition: all 0.3s; }
     .settings-input:focus { background-color: #fff; box-shadow: 0 0 0 4px rgba(0, 0, 0, 0.05); }
     
-    /* Toggle Switch */
+    /* Toggle Switch Personalizado */
     .toggle-checkbox:checked { right: 0; border-color: #22c55e; }
     .toggle-checkbox:checked + .toggle-label { background-color: #22c55e; }
+
+    /* Animações */
+    @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+    .animate-slideUp { animation: slideUp 0.5s ease-out forwards; }
   `}</style>
 );
 
-// --- DEFINIÇÃO DOS TEMAS ---
+// --- DEFINIÇÃO DOS TEMAS (CORES REAIS HEX) ---
 const THEMES = {
     'blue': { 
         name: 'Lopes Blue', 
@@ -66,7 +71,7 @@ const THEMES = {
     },
 };
 
-// --- COMPONENTE PÚBLICO ---
+// --- COMPONENTE DE VISUALIZAÇÃO PÚBLICA (LANDING PAGE) ---
 const PublicPropertyView = ({ propertyId }) => {
     const [prop, setProp] = useState(null);
     useEffect(() => {
@@ -79,7 +84,7 @@ const PublicPropertyView = ({ propertyId }) => {
         fetchProp();
     }, [propertyId]);
 
-    if (!prop) return <div className="min-h-screen flex items-center justify-center font-bold text-slate-400">Carregando...</div>;
+    if (!prop) return <div className="min-h-screen flex items-center justify-center font-bold text-slate-400">Carregando Imóvel...</div>;
 
     return (
         <div className="min-h-screen bg-white font-sans text-slate-900">
@@ -106,7 +111,7 @@ const PublicPropertyView = ({ propertyId }) => {
     );
 };
 
-// --- APP PRINCIPAL ---
+// --- APLICAÇÃO PRINCIPAL (CRM) ---
 function App() {
     const urlParams = new URLSearchParams(window.location.search);
     const publicId = urlParams.get('id');
@@ -118,12 +123,12 @@ function App() {
     const [settingsTab, setSettingsTab] = useState('perfil'); 
     const [showForm, setShowForm] = useState(false);
     
-    // DADOS
+    // ESTADOS DE DADOS
     const [clients, setClients] = useState([]);
     const [properties, setProperties] = useState([]);
     const [agenda, setAgenda] = useState([]);
     
-    // CONFIGURAÇÕES
+    // CONFIGURAÇÕES GERAIS
     const [settings, setSettings] = useState({
         userName: 'Alexandre',
         userSurname: 'Corretor',
@@ -138,7 +143,7 @@ function App() {
         language: 'pt-BR'
     });
 
-    // VARIAVEIS UI
+    // VARIÁVEIS DE UI
     const [searchTerm, setSearchTerm] = useState('');
     const [statusFilter, setStatusFilter] = useState('TODOS');
     const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
@@ -146,7 +151,7 @@ function App() {
     const [editingId, setEditingId] = useState(null);
     const [newPassword, setNewPassword] = useState('');
 
-    // INPUTS FORM
+    // INPUTS DO FORMULÁRIO (MODAL)
     const [name, setName] = useState('');
     const [phone, setPhone] = useState('');
     const [propertyInterest, setPropertyInterest] = useState('');
@@ -161,20 +166,24 @@ function App() {
     const [agendaTime, setAgendaTime] = useState('');
     const [agendaType, setAgendaType] = useState('Tarefa');
 
-    // WHATSAPP
+    // WHATSAPP & MENSAGENS
     const [wpNumber, setWpNumber] = useState('');
     const [wpMessage, setWpMessage] = useState('');
     const [bulkMessage, setBulkMessage] = useState('');
     const [selectedClients, setSelectedClients] = useState([]);
 
+    // TEMA ATUAL SELECIONADO
     const theme = THEMES[settings.themeColor] || THEMES['blue'];
 
+    // TEMPLATES DE WHATSAPP (Mensagens Rápidas)
     const templates = [
         { title: 'Primeira Abordagem', text: `Olá! Sou ${settings.userName}, da Lopes Prime. Gostaria de saber se você tem interesse em comprar ou alugar um imóvel. Posso ajudar?` },
         { title: 'Follow-up', text: 'Oi! Como vai? Ainda tem interesse naquele imóvel? Tenho novas opções que podem te interessar.' },
         { title: 'Agendar Visita', text: 'Olá! Vamos agendar uma visita para conhecer o decorado? Tenho horários disponíveis.' },
         { title: 'Proposta', text: 'Parabéns! Sua proposta foi bem recebida. Vamos conversar sobre os próximos passos?' }
     ];
+
+    // --- FUNÇÕES AUXILIARES ---
 
     const playSuccessSound = () => {
         if(settings.soundEnabled) new Audio('https://assets.mixkit.co/active_storage/sfx/2568/2568-preview.mp3').play().catch(()=>{});
@@ -206,17 +215,17 @@ function App() {
     };
 
     const handleUpdatePassword = async () => {
-        if(newPassword.length < 6) return alert("Mínimo 6 caracteres.");
+        if(newPassword.length < 6) return alert("A senha deve ter no mínimo 6 caracteres.");
         try {
             if(auth.currentUser) {
                 await updatePassword(auth.currentUser, newPassword);
-                alert("Senha atualizada!");
+                alert("Senha atualizada com sucesso!");
                 setNewPassword('');
             }
-        } catch (e) { alert("Erro: " + e.message); }
+        } catch (e) { alert("Erro ao atualizar senha: " + e.message); }
     };
 
-    const exportData = (type) => { alert(`Exportando ${type} para CSV...`); };
+    const exportData = (type) => { alert(`Simulação: Exportando ${type} para CSV...`); };
 
     const updateClientStatus = async (clientId, newStatus) => {
         await updateDoc(doc(db, 'clients', clientId), { status: newStatus });
@@ -234,9 +243,13 @@ function App() {
         const text = (client.observations || "").toLowerCase();
         const status = client.status || "LEAD";
         let score = 0;
+        
+        // Critérios de Pontuação
         if (status === "PROPOSTA") score += 50;
         if (status === "AGENDADO") score += 30;
-        if (text.includes("urgente") || text.includes("comprar")) score += 20;
+        if (text.includes("urgente") || text.includes("comprar") || text.includes("dinheiro")) score += 20;
+        if (client.phones && client.phones.length > 0) score += 10;
+        
         if (score >= 50) return { label: "QUENTE", color: "text-red-500", icon: "🔥", glow: "border-red-200 bg-red-50/20" };
         if (score >= 20) return { label: "MORNO", color: "text-orange-400", icon: "⚡", glow: "" };
         return { label: "FRIO", color: "text-blue-400", icon: "❄️", glow: "" };
@@ -249,13 +262,13 @@ function App() {
 
     const sendMaterial = (client) => {
         const prop = properties.find(p => p.title === client.propertyInterest);
-        const pdfLink = prop?.pdf || "Link em breve";
+        const pdfLink = prop?.pdf || "Link indisponível no momento";
         sendWp(client.phones?.[0], `Olá ${client.fullName}! Aqui é o ${settings.userName}. Segue o material do ${client.propertyInterest}: ${pdfLink}`);
     };
 
     const handleBulkSend = () => {
-        if (selectedClients.length === 0) return alert('Selecione!');
-        if (!bulkMessage) return alert('Mensagem vazia!');
+        if (selectedClients.length === 0) return alert('Selecione pelo menos um cliente!');
+        if (!bulkMessage) return alert('Digite a mensagem para envio!');
         selectedClients.forEach(num => sendWp(num, bulkMessage));
     };
 
@@ -269,6 +282,12 @@ function App() {
         const clean = value.replace(/\D/g, "");
         return clean ? "R$ " + new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 2 }).format(parseFloat(clean) / 100) : "";
     };
+
+    // Cálculos para Dashboard
+    const totalVGV = properties.reduce((acc, curr) => acc + (parseFloat(curr.price.replace(/\D/g, '')) / 100 || 0), 0);
+    const hotLeadsCount = clients.filter(c => analyzeLead(c).label === "QUENTE").length;
+    const todayStr = new Date().toISOString().split('T')[0];
+    const todaysAgenda = agenda.filter(a => a.date === todayStr);
 
     const generateCalendarDays = () => {
         const year = currentMonth.getFullYear();
@@ -290,8 +309,10 @@ function App() {
         return () => unsub();
     }, []);
 
+    // RENDERIZAÇÃO PÚBLICA
     if (isPublic && publicId) return <PublicPropertyView propertyId={publicId} />;
 
+    // FILTRAGEM DE CLIENTES
     const filteredClients = clients.filter(c => {
         const match = (c.fullName || "").toLowerCase().includes(searchTerm.toLowerCase()) || (c.propertyInterest || "").toLowerCase().includes(searchTerm.toLowerCase());
         return match && (statusFilter === 'TODOS' || c.status === statusFilter);
@@ -304,6 +325,7 @@ function App() {
         <div className="min-h-screen bg-[#f3f4f6] flex font-sans text-slate-900 overflow-x-hidden">
             <TailwindStyle />
             
+            {/* --- SIDEBAR --- */}
             <aside className="w-20 lg:w-72 border-r border-slate-200 flex flex-col sticky top-0 h-screen z-50 transition-colors duration-500" 
                    style={{ backgroundColor: theme.sidebarBg }}>
                 <div className="p-8 mb-6">
@@ -335,6 +357,7 @@ function App() {
                 </div>
             </aside>
 
+            {/* --- ÁREA PRINCIPAL --- */}
             <main className="flex-1 p-10 overflow-y-auto">
                 <header className="mb-8 flex justify-between items-center bg-white p-6 rounded-3xl border border-white shadow-sm transition-colors duration-500">
                     <h2 className="text-3xl font-black uppercase italic tracking-tighter" style={{ color: theme.primary }}>
@@ -348,22 +371,110 @@ function App() {
 
                 <div className="animate-fadeIn">
                     
-                    {/* --- DASHBOARD --- */}
+                    {/* --- DASHBOARD FUTURISTA (ATUALIZADO) --- */}
                     {activeTab === 'dashboard' && (
-                        <div className="space-y-12">
-                            <div className="rounded-[4rem] p-12 text-white shadow-2xl relative overflow-hidden transition-colors duration-500" style={{ backgroundColor: theme.primary }}>
-                                <h3 className="text-5xl font-black italic mb-4 uppercase tracking-tighter">Fala, {settings.userName}!</h3>
-                                <p className="text-xl opacity-80 font-bold uppercase tracking-widest italic">Detectamos {clients.filter(c => analyzeLead(c).label === "QUENTE").length} oportunidades quentes.</p>
+                        <div className="space-y-10 animate-slideUp">
+                            {/* BANNER DE BOAS VINDAS */}
+                            <div className="relative rounded-[4rem] p-12 overflow-hidden shadow-2xl transition-colors duration-500" style={{ background: `linear-gradient(135deg, ${theme.primary} 0%, ${theme.secondary} 100%)` }}>
+                                <div className="absolute top-0 right-0 w-64 h-64 bg-white opacity-10 rounded-full -mr-20 -mt-20 blur-3xl"></div>
+                                <div className="relative z-10 text-white">
+                                    <h3 className="text-5xl font-black italic mb-2 uppercase tracking-tighter">Fala, {settings.userName}!</h3>
+                                    <p className="text-xl opacity-90 font-bold uppercase tracking-widest italic mb-8">O mercado está aquecido hoje.</p>
+                                    
+                                    <div className="flex gap-4 flex-wrap">
+                                        <div className="glass-dark p-6 rounded-3xl flex items-center gap-4 min-w-[200px]">
+                                            <span className="text-4xl">💰</span>
+                                            <div>
+                                                <p className="text-[10px] uppercase font-bold opacity-70">VGV Total (Carteira)</p>
+                                                <p className="text-xl font-black">{totalVGV.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 })}</p>
+                                            </div>
+                                        </div>
+                                        <div className="glass-dark p-6 rounded-3xl flex items-center gap-4 min-w-[200px]">
+                                            <span className="text-4xl">🔥</span>
+                                            <div>
+                                                <p className="text-[10px] uppercase font-bold opacity-70">Leads Quentes</p>
+                                                <p className="text-xl font-black">{hotLeadsCount} Oportunidades</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-10">
-                                <div className="bg-white p-10 rounded-[3.5rem] shadow-premium flex flex-col items-center"><p className="text-slate-400 text-xs font-black uppercase mb-4 tracking-widest">Leads</p><p className="text-7xl font-black leading-none" style={{ color: theme.primary }}>{clients.length}</p></div>
-                                <div className="bg-white p-10 rounded-[3.5rem] shadow-premium flex flex-col items-center"><p className="text-slate-400 text-xs font-black uppercase mb-4 tracking-widest">Imóveis</p><p className="text-7xl font-black text-slate-700 leading-none">{properties.length}</p></div>
-                                <div className="bg-white p-10 rounded-[3.5rem] shadow-premium flex flex-col items-center"><p className="text-slate-400 text-xs font-black uppercase mb-4 tracking-widest">Agenda</p><p className="text-7xl font-black text-slate-700 leading-none">{agenda.length}</p></div>
+
+                            {/* PAINEL DE CONTROLE (DIVIDIDO) */}
+                            <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
+                                
+                                {/* COLUNA 1: FUNIL EM TEMPO REAL */}
+                                <div className="lg:col-span-2 bg-white p-10 rounded-[3.5rem] shadow-premium border border-slate-100">
+                                    <div className="flex justify-between items-center mb-8">
+                                        <h4 className="text-xl font-black uppercase italic text-slate-700">Funil em Tempo Real</h4>
+                                        <button onClick={() => setActiveTab('pipeline')} className="text-xs font-bold uppercase text-blue-500 hover:underline">Ver Detalhes</button>
+                                    </div>
+                                    <div className="space-y-6">
+                                        {[
+                                            { label: 'Novos Leads', count: clients.filter(c => c.status === 'LEAD').length, total: clients.length, color: 'bg-blue-500' },
+                                            { label: 'Visitas Agendadas', count: clients.filter(c => c.status === 'AGENDADO').length, total: clients.length, color: 'bg-yellow-400' },
+                                            { label: 'Propostas na Mesa', count: clients.filter(c => c.status === 'PROPOSTA').length, total: clients.length, color: 'bg-purple-500' },
+                                            { label: 'Negócios Fechados', count: clients.filter(c => c.status === 'FECHADO').length, total: clients.length, color: 'bg-green-500' }
+                                        ].map((item, idx) => (
+                                            <div key={idx}>
+                                                <div className="flex justify-between text-xs font-bold uppercase mb-2 text-slate-500">
+                                                    <span>{item.label}</span>
+                                                    <span>{item.count} Clientes</span>
+                                                </div>
+                                                <div className="h-4 bg-slate-100 rounded-full overflow-hidden">
+                                                    <div className={`h-full ${item.color} transition-all duration-1000`} style={{ width: `${(item.count / (item.total || 1)) * 100}%` }}></div>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                {/* COLUNA 2: PRÓXIMOS COMPROMISSOS */}
+                                <div className="bg-white p-10 rounded-[3.5rem] shadow-premium border border-slate-100">
+                                    <h4 className="text-xl font-black uppercase italic text-slate-700 mb-8">Agenda Hoje</h4>
+                                    <div className="space-y-4">
+                                        {todaysAgenda.length === 0 ? (
+                                            <div className="text-center py-10 opacity-40 font-bold uppercase text-sm">Livre por hoje 🏖️</div>
+                                        ) : (
+                                            todaysAgenda.map(task => (
+                                                <div key={task.id} className="p-5 bg-slate-50 rounded-3xl border border-slate-100 flex gap-4 items-center">
+                                                    <div className={`w-2 h-10 rounded-full ${task.type === 'Evento' ? 'bg-blue-500' : 'bg-green-500'}`}></div>
+                                                    <div>
+                                                        <p className="font-black text-sm uppercase text-slate-800">{task.time} - {task.title}</p>
+                                                        <p className="text-[10px] font-bold text-slate-400 uppercase truncate w-32">{task.observations}</p>
+                                                    </div>
+                                                </div>
+                                            ))
+                                        )}
+                                        <button onClick={() => setActiveTab('agenda')} className="w-full py-4 mt-4 bg-slate-100 rounded-2xl text-xs font-black uppercase text-slate-400 hover:bg-slate-200 transition">Ver Agenda Completa</button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* BARRA INFERIOR: ÚLTIMOS CLIENTES (RADAR) */}
+                            <div className="bg-white p-8 rounded-[3rem] shadow-premium border border-slate-100">
+                                <h4 className="text-lg font-black uppercase italic text-slate-700 mb-6 ml-4">Radar de Novos Clientes</h4>
+                                <div className="flex gap-6 overflow-x-auto pb-4 scrollbar-hide">
+                                    {clients.slice(0, 5).map(c => {
+                                        const analysis = analyzeLead(c);
+                                        return (
+                                            <div key={c.id} className="min-w-[220px] p-6 rounded-[2rem] bg-slate-50 border border-slate-100 flex flex-col gap-2 hover:shadow-lg transition">
+                                                <div className="flex justify-between items-center">
+                                                    <span className="font-black text-xs uppercase truncate w-24">{c.fullName}</span>
+                                                    <span className="text-lg">{analysis.icon}</span>
+                                                </div>
+                                                <p className="text-[10px] font-bold text-slate-400 uppercase">{c.propertyInterest || 'Sem interesse definido'}</p>
+                                                <div className={`text-[9px] font-black uppercase px-2 py-1 rounded-lg w-max ${analysis.color} bg-white`}>{analysis.label}</div>
+                                            </div>
+                                        )
+                                    })}
+                                    <button onClick={() => setActiveTab('clients')} className="min-w-[100px] flex items-center justify-center font-black text-xs uppercase text-slate-400 hover:text-blue-500">Ver Todos →</button>
+                                </div>
                             </div>
                         </div>
                     )}
                     
-                    {/* --- FUNIL KANBAN --- */}
+                    {/* --- FUNIL DE VENDAS (KANBAN) --- */}
                     {activeTab === 'pipeline' && (
                          <div className="flex gap-8 overflow-x-auto pb-8 scrollbar-hide">
                             {[{ id: 'LEAD', label: 'Novos', c: '#3b82f6' }, { id: 'AGENDADO', label: 'Visitas', c: '#eab308' }, { id: 'PROPOSTA', label: 'Propostas', c: '#a855f7' }, { id: 'FECHADO', label: 'Fechados', c: '#22c55e' }].map(col => (
@@ -408,7 +519,7 @@ function App() {
                         </div>
                     )}
 
-                    {/* --- CLIENTES (RESTAURADO COMPLETO) --- */}
+                    {/* --- CLIENTES (COMPLETO) --- */}
                     {activeTab === 'clients' && (
                         <div className="space-y-10">
                             <div className="flex justify-between items-center flex-wrap gap-4">
@@ -445,7 +556,7 @@ function App() {
                         </div>
                     )}
 
-                    {/* --- AGENDA --- */}
+                    {/* --- AGENDA (COMPLETO) --- */}
                     {activeTab === 'agenda' && (
                         <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
                             <div className="lg:col-span-5 space-y-8">
@@ -494,7 +605,7 @@ function App() {
                         </div>
                     )}
 
-                    {/* --- WHATSAPP (RESTAURADO) --- */}
+                    {/* --- WHATSAPP (COMPLETO) --- */}
                     {activeTab === 'whatsapp' && (
                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
                             <div className="space-y-8">
@@ -540,7 +651,7 @@ function App() {
                         </div>
                     )}
 
-                    {/* --- RELATÓRIOS --- */}
+                    {/* --- RELATÓRIOS (COMPLETO) --- */}
                     {activeTab === 'relatorios' && (
                         <div className="space-y-12 animate-fadeIn">
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
@@ -556,7 +667,7 @@ function App() {
                         </div>
                     )}
 
-                    {/* --- CONFIGURAÇÕES --- */}
+                    {/* --- CONFIGURAÇÕES (COMPLETO) --- */}
                     {activeTab === 'settings' && (
                         <div className="space-y-8">
                             <div className="flex flex-wrap gap-4 bg-white p-2 rounded-[2rem] shadow-sm w-max">
