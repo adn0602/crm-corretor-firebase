@@ -26,7 +26,7 @@ const TailwindStyle = () => (
   `}</style>
 );
 
-// --- DEFINIÇÃO DOS TEMAS (CORES REAIS) ---
+// --- DEFINIÇÃO DOS TEMAS ---
 const THEMES = {
     'blue': { 
         name: 'Lopes Blue', 
@@ -123,7 +123,7 @@ function App() {
     const [properties, setProperties] = useState([]);
     const [agenda, setAgenda] = useState([]);
     
-    // CONFIGURAÇÕES GERAIS
+    // CONFIGURAÇÕES
     const [settings, setSettings] = useState({
         userName: 'Alexandre',
         userSurname: 'Corretor',
@@ -168,6 +168,13 @@ function App() {
     const [selectedClients, setSelectedClients] = useState([]);
 
     const theme = THEMES[settings.themeColor] || THEMES['blue'];
+
+    const templates = [
+        { title: 'Primeira Abordagem', text: `Olá! Sou ${settings.userName}, da Lopes Prime. Gostaria de saber se você tem interesse em comprar ou alugar um imóvel. Posso ajudar?` },
+        { title: 'Follow-up', text: 'Oi! Como vai? Ainda tem interesse naquele imóvel? Tenho novas opções que podem te interessar.' },
+        { title: 'Agendar Visita', text: 'Olá! Vamos agendar uma visita para conhecer o decorado? Tenho horários disponíveis.' },
+        { title: 'Proposta', text: 'Parabéns! Sua proposta foi bem recebida. Vamos conversar sobre os próximos passos?' }
+    ];
 
     const playSuccessSound = () => {
         if(settings.soundEnabled) new Audio('https://assets.mixkit.co/active_storage/sfx/2568/2568-preview.mp3').play().catch(()=>{});
@@ -224,9 +231,14 @@ function App() {
     };
 
     const analyzeLead = (client) => {
+        const text = (client.observations || "").toLowerCase();
         const status = client.status || "LEAD";
-        if (status === "PROPOSTA") return { label: "QUENTE", color: "text-red-500", icon: "🔥", glow: "border-red-200 bg-red-50/20" };
-        if (status === "AGENDADO") return { label: "MORNO", color: "text-orange-400", icon: "⚡", glow: "" };
+        let score = 0;
+        if (status === "PROPOSTA") score += 50;
+        if (status === "AGENDADO") score += 30;
+        if (text.includes("urgente") || text.includes("comprar")) score += 20;
+        if (score >= 50) return { label: "QUENTE", color: "text-red-500", icon: "🔥", glow: "border-red-200 bg-red-50/20" };
+        if (score >= 20) return { label: "MORNO", color: "text-orange-400", icon: "⚡", glow: "" };
         return { label: "FRIO", color: "text-blue-400", icon: "❄️", glow: "" };
     };
 
@@ -237,8 +249,8 @@ function App() {
 
     const sendMaterial = (client) => {
         const prop = properties.find(p => p.title === client.propertyInterest);
-        const pdfLink = prop?.pdf || "Indisponível";
-        sendWp(client.phones?.[0], `Olá ${client.fullName}! Segue PDF: ${pdfLink}`);
+        const pdfLink = prop?.pdf || "Link em breve";
+        sendWp(client.phones?.[0], `Olá ${client.fullName}! Aqui é o ${settings.userName}. Segue o material do ${client.propertyInterest}: ${pdfLink}`);
     };
 
     const handleBulkSend = () => {
@@ -281,7 +293,7 @@ function App() {
     if (isPublic && publicId) return <PublicPropertyView propertyId={publicId} />;
 
     const filteredClients = clients.filter(c => {
-        const match = (c.fullName || "").toLowerCase().includes(searchTerm.toLowerCase());
+        const match = (c.fullName || "").toLowerCase().includes(searchTerm.toLowerCase()) || (c.propertyInterest || "").toLowerCase().includes(searchTerm.toLowerCase());
         return match && (statusFilter === 'TODOS' || c.status === statusFilter);
     });
 
@@ -396,7 +408,7 @@ function App() {
                         </div>
                     )}
 
-                    {/* --- CLIENTES --- */}
+                    {/* --- CLIENTES (RESTAURADO COMPLETO) --- */}
                     {activeTab === 'clients' && (
                         <div className="space-y-10">
                             <div className="flex justify-between items-center flex-wrap gap-4">
@@ -404,21 +416,36 @@ function App() {
                                 <button onClick={() => setShowForm(true)} className="text-white px-8 py-4 rounded-[2rem] font-black text-xs uppercase tracking-widest shadow-xl hover:scale-105 transition" style={{ backgroundColor: theme.primary }}>+ Novo Cliente</button>
                             </div>
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10">
-                                {filteredClients.map(c => (
-                                    <div key={c.id} className="bg-white rounded-[3rem] shadow-premium p-10 border border-slate-50 relative hover:shadow-2xl transition duration-500">
-                                        <button onClick={() => {setEditingId(c.id); setName(c.fullName); setPhone(c.phones?.[0]); setPropertyInterest(c.propertyInterest); setBirthDate(c.birthDate); setObservations(c.observations); setShowForm(true);}} className="absolute top-6 left-6 text-slate-300 hover:text-blue-600 text-2xl">✏️</button>
-                                        <h3 className="font-black uppercase text-2xl truncate ml-8 leading-none tracking-tighter" style={{ color: theme.primary }}>{c.fullName}</h3>
-                                        <div className="flex flex-col gap-3 mt-8">
-                                            <button onClick={() => sendMaterial(c)} className="bg-slate-100 hover:bg-slate-200 text-slate-600 font-black py-4 rounded-[2rem] shadow-sm text-xs uppercase tracking-widest transition">Enviar Material</button>
-                                            <a href={`https://wa.me/55${c.phones?.[0]?.replace(/\D/g,'')}`} target="_blank" className="bg-green-500 hover:bg-green-600 text-white text-center font-black py-4 rounded-[2rem] shadow-lg text-xs uppercase tracking-widest transition">WhatsApp</a>
+                                {filteredClients.map(c => {
+                                    const ai = analyzeLead(c);
+                                    return (
+                                        <div key={c.id} className={`bg-white rounded-[3rem] shadow-premium p-10 border border-slate-50 relative hover:shadow-2xl transition duration-500 ${ai.glow}`}>
+                                            <button onClick={() => {setEditingId(c.id); setName(c.fullName); setPhone(c.phones?.[0]); setPropertyInterest(c.propertyInterest); setBirthDate(c.birthDate); setObservations(c.observations); setShowForm(true);}} className="absolute top-6 left-6 text-slate-300 hover:text-blue-600 text-2xl">✏️</button>
+                                            <div className="flex justify-between items-start mb-6 pt-4">
+                                                <h3 className="font-black uppercase text-2xl truncate ml-8 leading-none tracking-tighter" style={{ color: theme.primary }}>{c.fullName}</h3>
+                                                <span className={`text-[10px] font-black px-3 py-1.5 rounded-xl uppercase ${ai.color} bg-slate-50 shadow-inner`}>{ai.icon} {ai.label}</span>
+                                            </div>
+                                            <div className="bg-yellow-50 border-l-8 border-yellow-400 p-4 mb-6 rounded-r-3xl text-xs font-black italic uppercase text-slate-700 tracking-tight shadow-sm">🚩 {c.propertyInterest || 'Geral'}</div>
+                                            <div className="grid grid-cols-2 gap-4 mb-6 text-xs font-black uppercase">
+                                                <div className="bg-slate-50 p-4 rounded-2xl"><p className="text-blue-800 text-[8px] mb-2 uppercase font-bold">🎂 Nascimento</p>{c.birthDate ? new Date(c.birthDate).toLocaleDateString('pt-BR') : '-'}</div>
+                                                <div className="bg-slate-50 p-4 rounded-2xl"><p className="text-green-700 text-[8px] mb-2 uppercase font-bold">📞 WhatsApp</p>{c.phones?.[0]}</div>
+                                            </div>
+                                            <div className="mb-8 bg-slate-50/50 p-6 rounded-[2.5rem] border border-slate-100 h-36 overflow-y-auto text-sm italic font-bold text-slate-500 leading-relaxed scrollbar-hide shadow-inner">
+                                                {c.observations || 'Nenhuma nota.'}
+                                            </div>
+                                            <div className="flex flex-col gap-3">
+                                                <button onClick={() => sendMaterial(c)} className="bg-blue-600 hover:bg-blue-700 text-white font-black py-4 rounded-[2rem] shadow-lg text-xs uppercase tracking-widest transition active:scale-95">Enviar Material</button>
+                                                <a href={`https://wa.me/55${c.phones?.[0]?.replace(/\D/g,'')}`} target="_blank" className="bg-green-500 hover:bg-green-600 text-white text-center font-black py-4 rounded-[2rem] shadow-lg text-xs uppercase tracking-widest transition active:scale-95">Zap Direto</a>
+                                                <button onClick={() => deleteDoc(doc(db, 'clients', c.id)).then(() => loadData(user.uid))} className="w-full text-xs font-black text-slate-200 hover:text-red-500 uppercase tracking-widest text-center mt-2 transition">Remover Lead</button>
+                                            </div>
                                         </div>
-                                    </div>
-                                ))}
+                                    );
+                                })}
                             </div>
                         </div>
                     )}
 
-                    {/* --- AGENDA (RESTAURADA) --- */}
+                    {/* --- AGENDA --- */}
                     {activeTab === 'agenda' && (
                         <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
                             <div className="lg:col-span-5 space-y-8">
@@ -479,6 +506,21 @@ function App() {
                                         <button onClick={() => sendWp(wpNumber, wpMessage)} className="w-full bg-green-500 text-white py-6 rounded-[2.5rem] font-black uppercase tracking-widest shadow-xl hover:bg-green-600 transition">🚀 Enviar</button>
                                     </div>
                                 </div>
+                                <div className="space-y-6">
+                                    <h3 className="text-2xl font-black uppercase italic mb-4" style={{ color: theme.primary }}>Mensagens Rápidas</h3>
+                                    {templates.map((tpl, idx) => (
+                                        <div key={idx} className="bg-white p-8 rounded-[2.5rem] shadow-sm border border-slate-100 hover:shadow-lg transition group">
+                                            <div className="flex justify-between items-center mb-4">
+                                                <h4 className="font-black text-slate-700 uppercase text-sm">{tpl.title}</h4>
+                                                <div className="flex gap-2">
+                                                    <button onClick={() => {setWpMessage(tpl.text); setBulkMessage(tpl.text);}} className="p-3 bg-yellow-100 text-yellow-600 rounded-xl hover:bg-yellow-200 transition" title="Copiar">📋</button>
+                                                    <button onClick={() => sendWp(wpNumber, tpl.text)} className="p-3 bg-green-500 text-white rounded-xl hover:bg-green-600 transition" title="Enviar">➤</button>
+                                                </div>
+                                            </div>
+                                            <p className="text-sm text-slate-500 italic border-l-4 border-slate-200 pl-4">{tpl.text}</p>
+                                        </div>
+                                    ))}
+                                </div>
                             </div>
                             <div className="space-y-8">
                                 <div className="bg-white p-10 rounded-[3rem] shadow-premium border border-slate-100">
@@ -498,7 +540,7 @@ function App() {
                         </div>
                     )}
 
-                    {/* --- RELATÓRIOS (RESTAURADO E RENOMEADO) --- */}
+                    {/* --- RELATÓRIOS --- */}
                     {activeTab === 'relatorios' && (
                         <div className="space-y-12 animate-fadeIn">
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
