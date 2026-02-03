@@ -10,11 +10,12 @@ const TailwindStyle = () => (
     .glass { background: rgba(255, 255, 255, 0.75); backdrop-filter: blur(15px); border: 1px solid rgba(255, 255, 255, 0.4); }
     .ai-gradient { background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 100%); }
     .shadow-premium { box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.1); }
-    .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
-    .calendar-day { aspect-ratio: 1 / 1; display: flex; flex-direction: column; align-items: center; justify-content: center; border-radius: 12px; font-size: 10px; font-weight: 800; cursor: pointer; transition: all 0.2s; }
+    .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
+    .calendar-day { aspect-ratio: 1 / 1; display: flex; flex-direction: column; align-items: center; justify-content: center; border-radius: 15px; font-size: 14px; font-weight: 800; cursor: pointer; transition: all 0.2s; }
     .calendar-day:hover { background: #eff6ff; color: #1e3a8a; }
     .calendar-day.active { background: #1e3a8a; color: white; box-shadow: 0 4px 12px rgba(30, 58, 138, 0.3); }
-    .dot { width: 4px; height: 4px; border-radius: 50%; background: #3b82f6; margin-top: 2px; }
+    .dot { width: 6px; height: 6px; border-radius: 50%; background: #3b82f6; margin-top: 4px; }
+    body { font-size: 16px; } /* Aumento da base da fonte */
   `}</style>
 );
 
@@ -30,10 +31,17 @@ function App() {
     const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
     const [currentMonth, setCurrentMonth] = useState(new Date());
 
+    const [name, setName] = useState('');
+    const [phone, setPhone] = useState('');
+    const [propertyInterest, setPropertyInterest] = useState('');
+    const [birthDate, setBirthDate] = useState('');
+    const [observations, setObservations] = useState('');
+    const [propPrice, setPropPrice] = useState('');
+    const [propImg, setPropImg] = useState('');
+    
     const [agendaTitle, setAgendaTitle] = useState('');
     const [agendaTime, setAgendaTime] = useState('');
     const [agendaType, setAgendaType] = useState('Tarefa');
-    const [observations, setObservations] = useState('');
 
     const playSuccessSound = () => {
         const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2568/2568-preview.mp3');
@@ -59,21 +67,26 @@ function App() {
         const month = currentMonth.getMonth();
         const firstDay = new Date(year, month, 1).getDay();
         const daysInMonth = new Date(year, month + 1, 0).getDate();
-        
         const days = [];
         for (let i = 0; i < firstDay; i++) days.push(null);
         for (let i = 1; i <= daysInMonth; i++) days.push(i);
         return days;
     };
 
+    const addClient = async () => {
+        await addDoc(collection(db, 'clients'), { fullName: name, phones: [phone], propertyInterest, birthDate, observations, status: "LEAD", assignedAgent: user.uid, createdAt: new Date() });
+        playSuccessSound(); resetForm(); loadData(user.uid);
+    };
+
     const addAgendaItem = async () => {
-        await addDoc(collection(db, 'agenda'), {
-            title: agendaTitle, date: selectedDate, time: agendaTime, type: agendaType,
-            observations, userId: user.uid, createdAt: new Date()
-        });
-        playSuccessSound();
-        setAgendaTitle(''); setAgendaTime(''); setShowForm(false);
-        loadData(user.uid);
+        await addDoc(collection(db, 'agenda'), { title: agendaTitle, date: selectedDate, time: agendaTime, type: agendaType, observations, userId: user.uid, createdAt: new Date() });
+        playSuccessSound(); resetForm(); loadData(user.uid);
+    };
+
+    const resetForm = () => {
+        setName(''); setPhone(''); setPropertyInterest(''); setBirthDate(''); setObservations('');
+        setPropPrice(''); setPropImg(''); setAgendaTitle(''); setAgendaTime('');
+        setShowForm(false);
     };
 
     useEffect(() => {
@@ -85,41 +98,43 @@ function App() {
         return () => unsub();
     }, []);
 
-    if (loading) return <div className="h-screen flex items-center justify-center font-black text-blue-900 bg-slate-50 animate-pulse uppercase italic">Alexandre CRM...</div>;
+    if (loading) return <div className="h-screen flex items-center justify-center font-black text-blue-900 bg-slate-50 text-2xl animate-pulse">ALEXANDRE CRM...</div>;
     if (!user) return <Login onLogin={setUser} />;
 
     return (
-        <div className="min-h-screen bg-slate-50 flex font-sans text-slate-900 overflow-x-hidden">
+        <div className="min-h-screen bg-slate-50 flex font-sans text-slate-900">
             <TailwindStyle />
-            <aside className="w-20 lg:w-64 bg-white border-r border-slate-200 flex flex-col sticky top-0 h-screen z-50">
-                <div className="p-6 mb-8 text-center lg:text-left"><h1 className="text-xl font-black text-blue-900 italic hidden lg:block uppercase tracking-tighter italic">ALEXANDRE <span className="text-blue-500 font-black">CRM</span></h1></div>
-                <nav className="flex-1 px-4 space-y-4">
+            {/* SIDEBAR - Fontes Maiores */}
+            <aside className="w-20 lg:w-72 bg-white border-r border-slate-200 flex flex-col sticky top-0 h-screen z-50 transition-all">
+                <div className="p-8 mb-10 text-center lg:text-left"><h1 className="text-2xl font-black text-blue-900 italic hidden lg:block uppercase tracking-tighter">ALEXANDRE <span className="text-blue-500">CRM</span></h1></div>
+                <nav className="flex-1 px-6 space-y-6">
                     {['dashboard', 'clients', 'properties', 'agenda'].map(id => (
-                        <button key={id} onClick={() => setActiveTab(id)} className={`w-full flex items-center lg:gap-4 p-4 rounded-2xl font-black text-[10px] transition-all uppercase tracking-widest ${activeTab === id ? 'bg-blue-900 text-white shadow-xl' : 'text-slate-400 hover:bg-slate-50'}`}>
-                            {id === 'dashboard' ? '📊' : id === 'clients' ? '👥' : id === 'properties' ? '🏠' : '📅'} <span className="hidden lg:block">{id}</span>
+                        <button key={id} onClick={() => setActiveTab(id)} className={`w-full flex items-center lg:gap-5 p-5 rounded-2xl font-black text-sm transition-all uppercase tracking-widest ${activeTab === id ? 'bg-blue-900 text-white shadow-xl scale-105' : 'text-slate-400 hover:bg-slate-100'}`}>
+                            <span className="text-2xl">{id === 'dashboard' ? '📊' : id === 'clients' ? '👥' : id === 'properties' ? '🏠' : '📅'}</span> 
+                            <span className="hidden lg:block">{id === 'clients' ? 'Clientes' : id === 'properties' ? 'Imóveis' : id}</span>
                         </button>
                     ))}
                 </nav>
             </aside>
 
-            <main className="flex-1 p-8 overflow-y-auto">
+            <main className="flex-1 p-10 overflow-y-auto">
                 {activeTab === 'agenda' && (
-                    <div className="max-w-7xl mx-auto space-y-8">
-                        <div className="flex justify-between items-center">
-                            <h2 className="text-4xl font-black text-blue-900 uppercase italic tracking-tighter leading-none">Agenda <br/><span className="text-blue-500 text-sm tracking-widest uppercase not-italic font-bold">Gerencie seus compromissos e visitas</span></h2>
-                            <button onClick={() => setShowForm(true)} className="bg-blue-900 text-white px-8 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-2xl hover:scale-105 transition">+ Novo Compromisso</button>
+                    <div className="max-w-7xl mx-auto space-y-10">
+                        <div className="flex justify-between items-end">
+                            <h2 className="text-5xl font-black text-blue-900 uppercase italic tracking-tighter leading-none">Minha Agenda <br/><span className="text-blue-500 text-lg tracking-widest uppercase not-italic font-bold">Compromissos e Visitas</span></h2>
+                            <button onClick={() => setShowForm(true)} className="bg-blue-900 text-white px-10 py-5 rounded-3xl font-black text-xs uppercase tracking-widest shadow-2xl hover:scale-105 transition">+ Agendar</button>
                         </div>
 
-                        <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
-                            {/* CALENDÁRIO VISUAL */}
+                        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
+                            {/* CALENDÁRIO */}
                             <div className="lg:col-span-5">
-                                <div className="glass p-8 rounded-[3rem] shadow-premium bg-white/80">
-                                    <div className="flex justify-between items-center mb-8">
-                                        <button onClick={() => setCurrentMonth(new Date(currentMonth.setMonth(currentMonth.getMonth() - 1)))} className="p-2 hover:bg-slate-100 rounded-full">◀</button>
-                                        <h3 className="font-black text-blue-900 uppercase italic tracking-widest">{currentMonth.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}</h3>
-                                        <button onClick={() => setCurrentMonth(new Date(currentMonth.setMonth(currentMonth.getMonth() + 1)))} className="p-2 hover:bg-slate-100 rounded-full">▶</button>
+                                <div className="glass p-10 rounded-[3.5rem] shadow-premium bg-white">
+                                    <div className="flex justify-between items-center mb-10 text-xl font-black text-blue-900 uppercase italic">
+                                        <button onClick={() => setCurrentMonth(new Date(currentMonth.setMonth(currentMonth.getMonth() - 1)))} className="p-3 bg-slate-50 rounded-full">◀</button>
+                                        <span>{currentMonth.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}</span>
+                                        <button onClick={() => setCurrentMonth(new Date(currentMonth.setMonth(currentMonth.getMonth() + 1)))} className="p-3 bg-slate-50 rounded-full">▶</button>
                                     </div>
-                                    <div className="calendar-grid mb-4 text-[9px] font-black text-slate-300 uppercase text-center">
+                                    <div className="calendar-grid mb-6 text-xs font-black text-slate-300 uppercase text-center">
                                         {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'].map(d => <div key={d}>{d}</div>)}
                                     </div>
                                     <div className="calendar-grid">
@@ -138,62 +153,55 @@ function App() {
                                 </div>
                             </div>
 
-                            {/* LISTA DE COMPROMISSOS */}
+                            {/* LISTA */}
                             <div className="lg:col-span-7">
-                                <div className="bg-white p-10 rounded-[3rem] shadow-premium min-h-[500px]">
-                                    <h3 className="text-2xl font-black text-blue-900 uppercase italic mb-8 border-b border-slate-100 pb-6 flex items-center justify-between">
-                                        {new Date(selectedDate + 'T00:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' })}
-                                        <span className="text-[10px] not-italic text-slate-400">{agenda.filter(a => a.date === selectedDate).length} COMPROMISSO(S)</span>
+                                <div className="bg-white p-12 rounded-[4rem] shadow-premium min-h-[600px]">
+                                    <h3 className="text-3xl font-black text-blue-900 uppercase italic mb-10 border-b border-slate-100 pb-8 flex items-center justify-between">
+                                        {new Date(selectedDate + 'T00:00:00').toLocaleDateString('pt-BR')}
+                                        <span className="text-xs not-italic text-slate-400 font-bold uppercase tracking-widest">{agenda.filter(a => a.date === selectedDate).length} Atividades</span>
                                     </h3>
-                                    <div className="space-y-6">
+                                    <div className="space-y-8">
                                         {agenda.filter(a => a.date === selectedDate).map(item => (
-                                            <div key={item.id} className="group relative bg-slate-50 p-6 rounded-[2.5rem] border border-slate-100 flex items-center gap-6 hover:shadow-xl transition-all duration-300">
-                                                <div className={`w-1.5 h-12 rounded-full ${item.type === 'Evento' ? 'bg-blue-500 shadow-[0_0_10px_rgba(59,130,246,0.5)]' : 'bg-green-500'}`}></div>
+                                            <div key={item.id} className="group bg-slate-50 p-8 rounded-[3rem] border border-slate-100 flex items-center gap-8 hover:shadow-2xl transition-all">
+                                                <div className={`w-2 h-16 rounded-full ${item.type === 'Evento' ? 'bg-blue-500' : 'bg-green-500'}`}></div>
                                                 <div className="flex-1">
-                                                    <div className="flex justify-between items-center">
-                                                        <h4 className="font-black text-blue-900 uppercase tracking-tighter text-lg leading-none">{item.title}</h4>
-                                                        <span className={`text-[8px] font-black px-3 py-1 rounded-full uppercase ${item.type === 'Evento' ? 'bg-blue-100 text-blue-600' : 'bg-green-100 text-green-600'}`}>{item.type}</span>
+                                                    <div className="flex justify-between items-center mb-2">
+                                                        <h4 className="font-black text-blue-900 uppercase text-2xl tracking-tighter leading-none">{item.title}</h4>
+                                                        <span className={`text-[10px] font-black px-4 py-2 rounded-xl uppercase ${item.type === 'Evento' ? 'bg-blue-100 text-blue-600' : 'bg-green-100 text-green-600'}`}>{item.type}</span>
                                                     </div>
-                                                    <div className="flex gap-4 mt-2">
-                                                        <p className="text-[10px] font-bold text-slate-400 uppercase">🕒 {item.time || 'Sem hora'}</p>
-                                                        <p className="text-[10px] font-bold text-slate-400 uppercase">📍 {item.observations?.substring(0, 30)}...</p>
-                                                    </div>
+                                                    <p className="text-sm font-bold text-slate-500 uppercase">🕒 {item.time || 'Sem horário'} | {item.observations}</p>
                                                 </div>
-                                                <button onClick={() => deleteDoc(doc(db, 'agenda', item.id)).then(() => loadData(user.uid))} className="opacity-0 group-hover:opacity-100 p-3 text-red-300 hover:text-red-500 transition">✕</button>
                                             </div>
                                         ))}
-                                        {agenda.filter(a => a.date === selectedDate).length === 0 && (
-                                            <div className="flex flex-col items-center justify-center py-20 opacity-20">
-                                                <span className="text-6xl mb-4">📅</span>
-                                                <p className="font-black uppercase italic text-slate-900">Nenhum compromisso</p>
-                                            </div>
-                                        )}
                                     </div>
                                 </div>
                             </div>
                         </div>
                     </div>
                 )}
-                
-                {/* O FORMULÁRIO MODAL DA AGENDA */}
-                {showForm && activeTab === 'agenda' && (
-                    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md">
-                        <div className="glass w-full max-w-lg p-12 rounded-[3.5rem] shadow-2xl border-2 border-white/50 animate-fadeIn">
-                            <h2 className="text-3xl font-black mb-10 text-blue-900 uppercase italic tracking-tighter text-center leading-none">Novo Compromisso<br/><span className="text-blue-500 text-[10px] tracking-[0.3em] uppercase not-italic">Agenda de Visitas e Tarefas</span></h2>
-                            <div className="space-y-5">
-                                <input type="text" placeholder="Título do Compromisso" value={agendaTitle} onChange={e => setAgendaTitle(e.target.value)} className="w-full p-5 bg-white rounded-3xl font-bold border-none shadow-inner" />
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div className="space-y-1"><label className="text-[8px] font-black uppercase text-slate-400 ml-4">Data</label><input type="date" value={selectedDate} onChange={e => setSelectedDate(e.target.value)} className="w-full p-4 bg-white rounded-2xl font-bold border-none text-xs" /></div>
-                                    <div className="space-y-1"><label className="text-[8px] font-black uppercase text-slate-400 ml-4">Horário</label><input type="time" value={agendaTime} onChange={e => setAgendaTime(e.target.value)} className="w-full p-4 bg-white rounded-2xl font-bold border-none text-xs" /></div>
-                                </div>
-                                <select value={agendaType} onChange={e => setAgendaType(e.target.value)} className="w-full p-5 bg-slate-100 rounded-3xl font-black uppercase text-[10px] tracking-widest outline-none">
-                                    <option value="Tarefa">Tarefa (Checklist)</option>
-                                    <option value="Evento">Evento (Visita/Reunião)</option>
-                                </select>
-                                <textarea placeholder="Detalhes, local ou observações..." value={observations} onChange={e => setObservations(e.target.value)} className="w-full p-5 bg-white rounded-3xl font-bold h-28 border-none shadow-inner text-sm" />
-                                <div className="flex gap-4 pt-6">
-                                    <button onClick={addAgendaItem} className="flex-1 bg-blue-900 text-white font-black py-5 rounded-[2.5rem] shadow-2xl uppercase tracking-widest hover:bg-black transition">Salvar Agenda</button>
-                                    <button onClick={() => setShowForm(false)} className="flex-1 bg-slate-100 text-slate-400 font-black py-5 rounded-[2.5rem] uppercase tracking-widest hover:bg-slate-200 transition">Cancelar</button>
+
+                {/* MODAL / FORMULÁRIO - Fontes Grandes */}
+                {showForm && (
+                    <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-slate-900/60 backdrop-blur-md">
+                        <div className="glass w-full max-w-2xl p-14 rounded-[4rem] shadow-2xl border-2 border-white/50">
+                            <h2 className="text-4xl font-black mb-12 text-blue-900 uppercase italic tracking-tighter text-center leading-none">Novo Registro</h2>
+                            <div className="space-y-6">
+                                <input type="text" placeholder="Título / Nome" value={activeTab === 'agenda' ? agendaTitle : name} onChange={e => activeTab === 'agenda' ? setAgendaTitle(e.target.value) : setName(e.target.value)} className="w-full p-6 bg-white rounded-3xl font-black text-lg border-none shadow-inner" />
+                                {activeTab === 'agenda' ? (
+                                    <div className="grid grid-cols-2 gap-6">
+                                        <input type="time" value={agendaTime} onChange={e => setAgendaTime(e.target.value)} className="w-full p-6 bg-white rounded-3xl font-black text-lg border-none" />
+                                        <select value={agendaType} onChange={e => setAgendaType(e.target.value)} className="w-full p-6 bg-slate-100 rounded-3xl font-black text-lg">
+                                            <option value="Tarefa">Tarefa</option>
+                                            <option value="Evento">Evento</option>
+                                        </select>
+                                    </div>
+                                ) : (
+                                    <input type="text" placeholder="WhatsApp" value={phone} onChange={e => setPhone(e.target.value)} className="w-full p-6 bg-white rounded-3xl font-black text-lg border-none shadow-inner" />
+                                )}
+                                <textarea placeholder="Detalhes / Observações" value={observations} onChange={e => setObservations(e.target.value)} className="w-full p-6 bg-white rounded-3xl font-bold h-40 border-none shadow-inner text-lg" />
+                                <div className="flex gap-6 pt-10">
+                                    <button onClick={activeTab === 'agenda' ? addAgendaItem : addClient} className="flex-1 bg-blue-900 text-white font-black py-6 rounded-[3rem] shadow-2xl uppercase tracking-widest text-xl transition hover:bg-black">Salvar</button>
+                                    <button onClick={() => setShowForm(false)} className="flex-1 bg-slate-100 text-slate-400 font-black py-6 rounded-[3rem] uppercase tracking-widest text-xl">Cancelar</button>
                                 </div>
                             </div>
                         </div>
