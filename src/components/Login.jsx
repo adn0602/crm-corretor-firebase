@@ -1,112 +1,110 @@
 import React, { useState } from 'react';
+import { signInWithEmailAndPassword } from 'firebase/auth';
 import { auth } from '../firebase/config';
-import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
+
+const LoginStyle = () => (
+  <style>{`
+    @import url('https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css');
+    @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,900;1,900&display=swap');
+    
+    .bg-mansion {
+      background-image: url('https://images.unsplash.com/photo-1600596542815-2a429b08e0b9?q=80&w=2075&auto=format&fit=crop');
+      background-size: cover;
+      background-position: center;
+    }
+    .glass-panel {
+      background: rgba(15, 23, 42, 0.65);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    .input-field {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      color: white;
+      transition: all 0.3s ease;
+    }
+    .input-field:focus {
+      background: rgba(255, 255, 255, 0.15);
+      border-color: #3b82f6;
+      outline: none;
+    }
+    .premium-font { font-family: 'Playfair Display', serif; }
+  `}</style>
+);
 
 function Login({ onLogin }) {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
-    const [isLogin, setIsLogin] = useState(true);
+    const [error, setError] = useState('');
+    const [loading, setLoading] = useState(false);
 
-    const handleSubmit = async (e) => {
+    const handleLogin = async (e) => {
         e.preventDefault();
-        
+        setLoading(true);
+        setError('');
         try {
-            if (isLogin) {
-                // LOGIN
-                const userCredential = await signInWithEmailAndPassword(auth, email, password);
-                alert('✅ Login realizado com sucesso!');
-                onLogin(userCredential.user);
-            } else {
-                // CADASTRO
-                const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-                alert('✅ Cadastro realizado com sucesso!');
-                onLogin(userCredential.user);
-            }
+            const userCredential = await signInWithEmailAndPassword(auth, email, password);
+            onLogin(userCredential.user);
         } catch (error) {
-            alert('❌ Erro: ' + error.message);
+            setError('Acesso negado. Verifique suas credenciais.');
+            setLoading(false);
         }
     };
 
     return (
-        <div style={{
-            display: 'flex', 
-            justifyContent: 'center', 
-            alignItems: 'center', 
-            height: '100vh',
-            background: '#f5f5f5'
-        }}>
-            <div style={{
-                background: 'white',
-                padding: '30px',
-                borderRadius: '10px',
-                boxShadow: '0 2px 10px rgba(0,0,0,0.1)',
-                width: '300px'
-            }}>
-                <h2 style={{ textAlign: 'center', color: '#2c3e50' }}>
-                    {isLogin ? '🔐 Login' : '📝 Cadastro'}
-                </h2>
-                
-                <form onSubmit={handleSubmit}>
-                    <input
-                        type="email"
-                        placeholder="Email"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        style={{
-                            width: '100%',
-                            padding: '10px',
-                            margin: '10px 0',
-                            border: '1px solid #ddd',
-                            borderRadius: '5px'
-                        }}
-                        required
-                    />
-                    <input
-                        type="password"
-                        placeholder="Senha"
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        style={{
-                            width: '100%',
-                            padding: '10px',
-                            margin: '10px 0',
-                            border: '1px solid #ddd',
-                            borderRadius: '5px'
-                        }}
-                        required
-                    />
-                    <button
-                        type="submit"
-                        style={{
-                            width: '100%',
-                            padding: '10px',
-                            background: '#3498db',
-                            color: 'white',
-                            border: 'none',
-                            borderRadius: '5px',
-                            cursor: 'pointer',
-                            fontWeight: 'bold'
-                        }}
+        <div className="min-h-screen bg-mansion flex items-center justify-center p-6 relative">
+            <LoginStyle />
+            {/* Overlay Escuro para leitura */}
+            <div className="absolute inset-0 bg-slate-900/40"></div>
+
+            <div className="glass-panel w-full max-w-md p-10 rounded-[3rem] shadow-2xl relative z-10 animate-fadeIn">
+                <div className="text-center mb-10">
+                    <p className="text-blue-400 text-xs font-black uppercase tracking-[0.3em] mb-2">Sistema Exclusivo</p>
+                    <h1 className="text-5xl text-white premium-font italic mb-1">Alexandre</h1>
+                    <h2 className="text-2xl text-slate-300 font-light uppercase tracking-widest">Real Estate CRM</h2>
+                </div>
+
+                <form onSubmit={handleLogin} className="space-y-6">
+                    <div>
+                        <input 
+                            type="email" 
+                            placeholder="E-mail Corporativo" 
+                            value={email} 
+                            onChange={(e) => setEmail(e.target.value)} 
+                            className="input-field w-full p-5 rounded-2xl font-bold text-sm placeholder-slate-400"
+                        />
+                    </div>
+                    <div>
+                        <input 
+                            type="password" 
+                            placeholder="Senha de Acesso" 
+                            value={password} 
+                            onChange={(e) => setPassword(e.target.value)} 
+                            className="input-field w-full p-5 rounded-2xl font-bold text-sm placeholder-slate-400"
+                        />
+                    </div>
+
+                    {error && (
+                        <div className="bg-red-500/20 border border-red-500/50 text-red-200 text-xs font-bold p-4 rounded-xl text-center uppercase tracking-wide">
+                            ⚠️ {error}
+                        </div>
+                    )}
+
+                    <button 
+                        type="submit" 
+                        disabled={loading}
+                        className="w-full bg-gradient-to-r from-blue-600 to-blue-800 hover:from-blue-500 hover:to-blue-700 text-white p-5 rounded-2xl font-black uppercase tracking-widest text-sm shadow-lg shadow-blue-900/50 transition transform hover:scale-[1.02] active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                        {isLogin ? 'Entrar' : 'Cadastrar'}
+                        {loading ? 'Autenticando...' : 'Acessar Painel'}
                     </button>
                 </form>
 
-                <p style={{ textAlign: 'center', marginTop: '15px' }}>
-                    {isLogin ? 'Não tem conta? ' : 'Já tem conta? '}
-                    <button
-                        onClick={() => setIsLogin(!isLogin)}
-                        style={{
-                            background: 'none',
-                            border: 'none',
-                            color: '#3498db',
-                            cursor: 'pointer',
-                            textDecoration: 'underline'
-                        }}
-                    >
-                        {isLogin ? 'Cadastre-se' : 'Fazer Login'}
-                    </button>
-                </p>
+                <div className="mt-10 text-center">
+                    <p className="text-slate-500 text-[10px] font-bold uppercase tracking-widest">
+                        Tecnologia Lopes Prime © 2026
+                    </p>
+                </div>
             </div>
         </div>
     );
