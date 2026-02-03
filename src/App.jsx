@@ -1,55 +1,54 @@
 import React, { useState, useEffect } from 'react';
 import { db, auth } from './firebase/config';
-import { collection, addDoc, getDocs, query, where, updateDoc, doc, deleteDoc, setDoc } from 'firebase/firestore';
+import { collection, addDoc, getDocs, query, where, updateDoc, doc, deleteDoc } from 'firebase/firestore';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
 import Login from './components/Login';
 
 const TailwindStyle = () => (
   <style>{`
     @import url('https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css');
-    .glass { background: rgba(255, 255, 255, 0.85); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.5); }
+    .glass { background: rgba(255, 255, 255, 0.9); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.5); }
     .ai-gradient { background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 100%); }
     .shadow-premium { box-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.1); }
     .scrollbar-hide::-webkit-scrollbar { display: none; }
     .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
-    .calendar-day { aspect-ratio: 1 / 1; display: flex; flex-direction: column; align-items: center; justify-content: center; border-radius: 16px; font-size: 16px; font-weight: 800; cursor: pointer; transition: all 0.2s; }
+    .calendar-day { aspect-ratio: 1 / 1; display: flex; flex-direction: column; align-items: center; justify-content: center; border-radius: 12px; font-size: 16px; font-weight: 800; cursor: pointer; transition: all 0.2s; }
     .calendar-day:hover { background: #eff6ff; color: #1e3a8a; }
     .calendar-day.active { background: #1e3a8a; color: white; box-shadow: 0 4px 15px rgba(30, 58, 138, 0.3); }
-    .dot { width: 6px; height: 6px; border-radius: 50%; background: #3b82f6; margin-top: 4px; }
-    .toggle-checkbox:checked { right: 0; border-color: #68D391; }
-    .toggle-checkbox:checked + .toggle-label { background-color: #68D391; }
     body { font-size: 16px; background-color: #f3f4f6; }
+    /* Toggle Switch Custom */
+    .toggle-checkbox:checked { right: 0; border-color: #22c55e; }
+    .toggle-checkbox:checked + .toggle-label { background-color: #22c55e; }
   `}</style>
 );
 
 function App() {
     const [user, setUser] = useState(null);
     const [loading, setLoading] = useState(true);
-    const [activeTab, setActiveTab] = useState('dashboard');
+    const [activeTab, setActiveTab] = useState('settings'); // Foco na aba Settings para visualização
     const [showForm, setShowForm] = useState(false);
     
-    // DADOS
+    // --- DADOS ---
     const [clients, setClients] = useState([]);
     const [properties, setProperties] = useState([]);
     const [agenda, setAgenda] = useState([]);
     
-    // CONFIGURAÇÕES & PERFIL
+    // --- CONFIGURAÇÕES ---
     const [settings, setSettings] = useState({
         userName: 'Alexandre',
         creci: '',
-        phone: '',
         soundEnabled: true,
         themeColor: 'blue' // blue, black, purple
     });
 
-    // FILTROS E BUSCA
+    // --- FILTROS ---
     const [searchTerm, setSearchTerm] = useState('');
     const [statusFilter, setStatusFilter] = useState('TODOS');
     const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
     const [currentMonth, setCurrentMonth] = useState(new Date());
     const [editingId, setEditingId] = useState(null);
 
-    // CAMPOS DE FORMULÁRIO
+    // --- INPUTS FORMULÁRIO ---
     const [name, setName] = useState('');
     const [phone, setPhone] = useState('');
     const [propertyInterest, setPropertyInterest] = useState('');
@@ -64,22 +63,17 @@ function App() {
     const [agendaTime, setAgendaTime] = useState('');
     const [agendaType, setAgendaType] = useState('Tarefa');
 
-    // WHATSAPP
+    // --- WHATSAPP ---
     const [wpNumber, setWpNumber] = useState('');
     const [wpMessage, setWpMessage] = useState('');
     const [bulkMessage, setBulkMessage] = useState('');
     const [selectedClients, setSelectedClients] = useState([]);
 
     const playSuccessSound = () => {
-        if (settings.soundEnabled) {
+        if(settings.soundEnabled) {
             const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2568/2568-preview.mp3');
             audio.play().catch(() => {});
         }
-    };
-
-    const formatCurrency = (value) => {
-        const clean = value.replace(/\D/g, "");
-        return clean ? "R$ " + new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 2 }).format(parseFloat(clean) / 100) : "";
     };
 
     const loadData = async (userId) => {
@@ -87,7 +81,7 @@ function App() {
             const qC = query(collection(db, 'clients'), where("assignedAgent", "==", userId));
             const snapC = await getDocs(qC);
             setClients(snapC.docs.map(d => ({ id: d.id, ...d.data() })));
-
+            
             const qP = query(collection(db, 'properties'), where("userId", "==", userId));
             const snapP = await getDocs(qP);
             setProperties(snapP.docs.map(d => ({ id: d.id, ...d.data() })));
@@ -98,15 +92,13 @@ function App() {
         } catch (error) { console.error(error); }
     };
 
-    // Exportar dados para CSV (Excel)
     const exportData = (type) => {
         const data = type === 'clients' ? clients : properties;
-        const csvContent = "data:text/csv;charset=utf-8," 
-            + data.map(e => Object.values(e).join(",")).join("\n");
+        const csvContent = "data:text/csv;charset=utf-8," + data.map(e => Object.values(e).join(",")).join("\n");
         const encodedUri = encodeURI(csvContent);
         const link = document.createElement("a");
         link.setAttribute("href", encodedUri);
-        link.setAttribute("download", `${type}_backup_crm.csv`);
+        link.setAttribute("download", `${type}_backup.csv`);
         document.body.appendChild(link);
         link.click();
     };
@@ -147,6 +139,11 @@ function App() {
         setAgendaTitle(''); setAgendaTime(''); setEditingId(null); setShowForm(false);
     };
 
+    const formatCurrency = (value) => {
+        const clean = value.replace(/\D/g, "");
+        return clean ? "R$ " + new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 2 }).format(parseFloat(clean) / 100) : "";
+    };
+
     const generateCalendarDays = () => {
         const year = currentMonth.getFullYear();
         const month = currentMonth.getMonth();
@@ -179,7 +176,6 @@ function App() {
         { title: 'Proposta', text: 'Parabéns! Sua proposta foi bem recebida. Vamos conversar sobre os próximos passos?' }
     ];
 
-    // Cor dinâmica baseada nas configurações
     const mainColor = settings.themeColor === 'black' ? 'bg-slate-900' : settings.themeColor === 'purple' ? 'bg-purple-900' : 'bg-blue-900';
     const textColor = settings.themeColor === 'black' ? 'text-slate-900' : settings.themeColor === 'purple' ? 'text-purple-900' : 'text-blue-900';
 
@@ -433,46 +429,32 @@ function App() {
                         </div>
                     )}
 
-                    {/* 7. CONFIGURAÇÕES (NOVA SEÇÃO) */}
+                    {/* 7. CONFIGURAÇÕES (CARTÕES) */}
                     {activeTab === 'settings' && (
-                        <div className="space-y-12">
-                            <div className="bg-white p-12 rounded-[3.5rem] shadow-premium border border-slate-100">
-                                <h3 className={`text-3xl font-black uppercase italic mb-10 ${textColor}`}>Perfil & Preferências</h3>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
-                                    <div className="space-y-6">
-                                        <div className="flex flex-col gap-2">
-                                            <label className="text-xs font-bold uppercase text-slate-400">Nome do Corretor</label>
-                                            <input type="text" value={settings.userName} onChange={e => setSettings({...settings, userName: e.target.value})} className="w-full p-6 bg-slate-50 rounded-3xl font-black text-xl border-none shadow-inner" />
-                                        </div>
-                                        <div className="flex flex-col gap-2">
-                                            <label className="text-xs font-bold uppercase text-slate-400">CRECI</label>
-                                            <input type="text" value={settings.creci} onChange={e => setSettings({...settings, creci: e.target.value})} className="w-full p-6 bg-slate-50 rounded-3xl font-black text-xl border-none shadow-inner" />
-                                        </div>
-                                    </div>
-                                    <div className="space-y-8">
-                                        <div className="flex items-center justify-between p-6 bg-slate-50 rounded-3xl">
-                                            <span className="font-bold uppercase text-slate-600">Sons do Sistema</span>
-                                            <button onClick={() => setSettings({...settings, soundEnabled: !settings.soundEnabled})} className={`w-16 h-8 rounded-full relative transition-colors ${settings.soundEnabled ? 'bg-green-500' : 'bg-slate-300'}`}>
-                                                <div className={`w-6 h-6 bg-white rounded-full absolute top-1 transition-all ${settings.soundEnabled ? 'right-1' : 'left-1'}`}></div>
-                                            </button>
-                                        </div>
-                                        <div className="space-y-4">
-                                            <span className="font-bold uppercase text-slate-600 block">Tema do Sistema</span>
-                                            <div className="flex gap-4">
-                                                <button onClick={() => setSettings({...settings, themeColor: 'blue'})} className={`flex-1 py-4 rounded-2xl font-bold uppercase text-xs ${settings.themeColor === 'blue' ? 'bg-blue-900 text-white shadow-xl' : 'bg-slate-200 text-slate-500'}`}>Azul Lopes</button>
-                                                <button onClick={() => setSettings({...settings, themeColor: 'black'})} className={`flex-1 py-4 rounded-2xl font-bold uppercase text-xs ${settings.themeColor === 'black' ? 'bg-slate-900 text-white shadow-xl' : 'bg-slate-200 text-slate-500'}`}>Dark</button>
-                                                <button onClick={() => setSettings({...settings, themeColor: 'purple'})} className={`flex-1 py-4 rounded-2xl font-bold uppercase text-xs ${settings.themeColor === 'purple' ? 'bg-purple-900 text-white shadow-xl' : 'bg-slate-200 text-slate-500'}`}>Roxo</button>
-                                            </div>
-                                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10">
+                            <div className="bg-white p-10 rounded-[3rem] shadow-premium border border-slate-100">
+                                <h3 className={`text-xl font-black uppercase italic mb-6 ${textColor}`}>Perfil Profissional</h3>
+                                <div className="space-y-6">
+                                    <div><label className="text-xs font-bold uppercase text-slate-400">Nome</label><input type="text" value={settings.userName} onChange={e => setSettings({...settings, userName: e.target.value})} className="w-full p-4 bg-slate-50 rounded-2xl font-black border-none" /></div>
+                                    <div><label className="text-xs font-bold uppercase text-slate-400">CRECI</label><input type="text" value={settings.creci} onChange={e => setSettings({...settings, creci: e.target.value})} className="w-full p-4 bg-slate-50 rounded-2xl font-black border-none" /></div>
+                                </div>
+                            </div>
+                            <div className="bg-white p-10 rounded-[3rem] shadow-premium border border-slate-100">
+                                <h3 className={`text-xl font-black uppercase italic mb-6 ${textColor}`}>Sistema & Tema</h3>
+                                <div className="space-y-6">
+                                    <div className="flex justify-between items-center"><span className="font-bold text-slate-600 uppercase text-xs">Sons de Efeito</span><button onClick={() => setSettings({...settings, soundEnabled: !settings.soundEnabled})} className={`w-12 h-6 rounded-full relative ${settings.soundEnabled ? 'bg-green-500' : 'bg-slate-300'}`}><div className={`w-4 h-4 bg-white rounded-full absolute top-1 transition-all ${settings.soundEnabled ? 'right-1' : 'left-1'}`}></div></button></div>
+                                    <div className="grid grid-cols-3 gap-2">
+                                        <button onClick={() => setSettings({...settings, themeColor: 'blue'})} className={`h-10 rounded-xl bg-blue-900 ${settings.themeColor === 'blue' ? 'ring-4 ring-blue-300' : ''}`}></button>
+                                        <button onClick={() => setSettings({...settings, themeColor: 'black'})} className={`h-10 rounded-xl bg-slate-900 ${settings.themeColor === 'black' ? 'ring-4 ring-slate-300' : ''}`}></button>
+                                        <button onClick={() => setSettings({...settings, themeColor: 'purple'})} className={`h-10 rounded-xl bg-purple-900 ${settings.themeColor === 'purple' ? 'ring-4 ring-purple-300' : ''}`}></button>
                                     </div>
                                 </div>
                             </div>
-                            
-                            <div className="bg-white p-12 rounded-[3.5rem] shadow-premium border border-slate-100">
-                                <h3 className={`text-3xl font-black uppercase italic mb-10 text-slate-900`}>Backup de Dados</h3>
-                                <div className="flex gap-6">
-                                    <button onClick={() => exportData('clients')} className="flex-1 bg-green-500 text-white py-6 rounded-[2.5rem] font-black uppercase tracking-widest shadow-xl hover:bg-green-600 transition">📥 Baixar Clientes (CSV)</button>
-                                    <button onClick={() => exportData('properties')} className="flex-1 bg-blue-500 text-white py-6 rounded-[2.5rem] font-black uppercase tracking-widest shadow-xl hover:bg-blue-600 transition">📥 Baixar Imóveis (CSV)</button>
+                            <div className="bg-white p-10 rounded-[3rem] shadow-premium border border-slate-100">
+                                <h3 className={`text-xl font-black uppercase italic mb-6 ${textColor}`}>Segurança de Dados</h3>
+                                <div className="flex flex-col gap-4">
+                                    <button onClick={() => exportData('clients')} className="bg-green-100 text-green-700 py-4 rounded-2xl font-black uppercase text-xs hover:bg-green-200 transition">📥 Baixar Clientes</button>
+                                    <button onClick={() => exportData('properties')} className="bg-blue-100 text-blue-700 py-4 rounded-2xl font-black uppercase text-xs hover:bg-blue-200 transition">📥 Baixar Imóveis</button>
                                 </div>
                             </div>
                         </div>
