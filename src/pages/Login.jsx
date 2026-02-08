@@ -13,7 +13,7 @@ const LoginStyle = () => (
       background-position: center;
     }
     .glass-panel {
-      background: rgba(15, 23, 42, 0.65);
+      background: rgba(15, 23, 42, 0.85);
       backdrop-filter: blur(20px);
       -webkit-backdrop-filter: blur(20px);
       border: 1px solid rgba(255, 255, 255, 0.1);
@@ -43,11 +43,26 @@ function Login({ onLogin }) {
         e.preventDefault();
         setLoading(true);
         setError('');
+
+        // Limpa espaços em branco que o teclado do celular ou computador pode colocar
+        const cleanEmail = email.trim();
+
         try {
-            const userCredential = await signInWithEmailAndPassword(auth, email, password);
-            onLogin(userCredential.user);
+            console.log("Tentando login com:", cleanEmail);
+            const userCredential = await signInWithEmailAndPassword(auth, cleanEmail, password);
+            console.log("Login realizado com sucesso!");
+            if (onLogin) onLogin(userCredential.user);
         } catch (error) {
-            setError('Acesso negado. Verifique suas credenciais.');
+            console.error("ERRO DETALHADO DO FIREBASE:", error.code, error.message);
+            
+            // Tradução de erros comuns para você saber o que fazer
+            if (error.code === 'auth/invalid-credential') {
+                setError('E-mail ou senha incorretos.');
+            } else if (error.code === 'auth/user-not-found') {
+                setError('Usuário não cadastrado.');
+            } else {
+                setError('Acesso negado. Verifique sua conexão e chaves.');
+            }
             setLoading(false);
         }
     };
@@ -55,10 +70,9 @@ function Login({ onLogin }) {
     return (
         <div className="min-h-screen bg-mansion flex items-center justify-center p-6 relative">
             <LoginStyle />
-            {/* Overlay Escuro para leitura */}
-            <div className="absolute inset-0 bg-slate-900/40"></div>
+            <div className="absolute inset-0 bg-slate-900/60"></div>
 
-            <div className="glass-panel w-full max-w-md p-10 rounded-[3rem] shadow-2xl relative z-10 animate-fadeIn">
+            <div className="glass-panel w-full max-w-md p-10 rounded-[3rem] shadow-2xl relative z-10">
                 <div className="text-center mb-10">
                     <p className="text-blue-400 text-xs font-black uppercase tracking-[0.3em] mb-2">Sistema Exclusivo</p>
                     <h1 className="text-5xl text-white premium-font italic mb-1">Alexandre</h1>
@@ -69,7 +83,8 @@ function Login({ onLogin }) {
                     <div>
                         <input 
                             type="email" 
-                            placeholder="E-mail Corporativo" 
+                            required
+                            placeholder="Seu E-mail (adn0602@...)" 
                             value={email} 
                             onChange={(e) => setEmail(e.target.value)} 
                             className="input-field w-full p-5 rounded-2xl font-bold text-sm placeholder-slate-400"
@@ -78,6 +93,7 @@ function Login({ onLogin }) {
                     <div>
                         <input 
                             type="password" 
+                            required
                             placeholder="Senha de Acesso" 
                             value={password} 
                             onChange={(e) => setPassword(e.target.value)} 
@@ -86,15 +102,15 @@ function Login({ onLogin }) {
                     </div>
 
                     {error && (
-                        <div className="bg-red-500/20 border border-red-500/50 text-red-200 text-xs font-bold p-4 rounded-xl text-center uppercase tracking-wide">
-                            ⚠️ {error}
+                        <div className="bg-red-500/20 border border-red-500/50 text-red-200 text-xs font-bold p-4 rounded-xl text-center">
+                            {error}
                         </div>
                     )}
 
                     <button 
                         type="submit" 
                         disabled={loading}
-                        className="w-full bg-gradient-to-r from-blue-600 to-blue-800 hover:from-blue-500 hover:to-blue-700 text-white p-5 rounded-2xl font-black uppercase tracking-widest text-sm shadow-lg shadow-blue-900/50 transition transform hover:scale-[1.02] active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="w-full bg-gradient-to-r from-blue-600 to-blue-800 hover:from-blue-500 hover:to-blue-700 text-white p-5 rounded-2xl font-black uppercase tracking-widest text-sm shadow-lg transition transform active:scale-95 disabled:opacity-50"
                     >
                         {loading ? 'Autenticando...' : 'Acessar Painel'}
                     </button>
@@ -102,7 +118,7 @@ function Login({ onLogin }) {
 
                 <div className="mt-10 text-center">
                     <p className="text-slate-500 text-[10px] font-bold uppercase tracking-widest">
-                        Tecnologia Lopes Prime © 2026
+                        Consultoria Alexandre Nascimento © 2026
                     </p>
                 </div>
             </div>
