@@ -5,7 +5,7 @@ import { onAuthStateChanged, signOut, updatePassword } from 'firebase/auth';
 import Login from './pages/Login';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, PieChart, Pie, Legend } from 'recharts';
 
-// --- MOTOR DE TEMAS ---
+// --- MOTOR DE TEMAS (RESTAURADO) ---
 const THEMES = {
     'blue': { name: 'Tech Blue', primary: '#2563eb', secondary: '#1e40af', bg: '#f8fafc', sidebar: '#ffffff', text: '#1e293b', accent: '#3b82f6' },
     'dark': { name: 'Midnight Luxury', primary: '#d4af37', secondary: '#b4941f', bg: '#0f172a', sidebar: '#1e293b', text: '#f8fafc', accent: '#fbbf24' },
@@ -13,7 +13,7 @@ const THEMES = {
     'purple': { name: 'Royal Estate', primary: '#7e22ce', secondary: '#6b21a8', bg: '#faf5ff', sidebar: '#ffffff', text: '#581c87', accent: '#9333ea' },
 };
 
-// --- ESTILOS GLOBAIS ---
+// --- ESTILOS GLOBAIS (FUNDIDOS) ---
 const TailwindStyle = ({ theme }) => (
   <style>{`
     @import url('https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css');
@@ -52,6 +52,17 @@ const TailwindStyle = ({ theme }) => (
     .prop-image img { width: 100%; height: 100%; object-fit: cover; border-radius: 1rem; }
     .custom-checkbox { width: 1.2rem; height: 1.2rem; border-radius: 0.4rem; border: 2px solid #cbd5e1; appearance: none; cursor: pointer; transition: 0.2s; }
     .custom-checkbox:checked { background-color: var(--primary); border-color: var(--primary); background-image: url("data:image/svg+xml,%3csvg viewBox='0 0 16 16' fill='white' xmlns='http://www.w3.org/2000/svg'%3e%3cpath d='M12.207 4.793a1 1 0 010 1.414l-5 5a1 1 0 01-1.414 0l-2.5-2.5a1 1 0 011.414-1.414L6.5 9.086l4.293-4.293a1 1 0 011.414 0z'/%3e%3c/svg%3e"); }
+
+    /* --- NOVOS ESTILOS: CARROSSEL & FLUXO --- */
+    .carousel-container { position: relative; width: 100%; height: 100%; overflow: hidden; background: #000; border-radius: 1rem; }
+    .carousel-btn { position: absolute; top: 50%; transform: translateY(-50%); background: rgba(0,0,0,0.5); color: white; border: none; width: 40px; height: 40px; border-radius: 50%; display: flex; items-center; justify-content: center; cursor: pointer; z-index: 10; transition: 0.2s; }
+    .carousel-btn:hover { background: rgba(0,0,0,0.8); }
+    .carousel-btn.left { left: 10px; }
+    .carousel-btn.right { right: 10px; }
+
+    .fluxo-input { width: 100%; background: ${theme.name.includes('Dark') ? 'rgba(0,0,0,0.2)' : '#f8fafc'}; border: 1px solid #cbd5e1; padding: 8px; border-radius: 6px; font-weight: 600; color: var(--text-main); text-align: right; }
+    .fluxo-input:focus { border-color: var(--primary); outline: none; }
+    .fluxo-label { font-weight: 700; text-transform: uppercase; font-size: 0.75rem; opacity: 0.7; }
     
     @media print {
         .sidebar-container, .no-print { display: none !important; }
@@ -92,6 +103,13 @@ const maskCurrency = (v) => {
 
 const maskNumber = (v) => String(v || '').replace(/\D/g, "");
 
+// Função para converter "R$ 1.000,00" em float
+const parseCurrency = (v) => {
+    if (typeof v === 'number') return v;
+    return parseFloat(String(v).replace('R$', '').replace(/\./g, '').replace(',', '.').trim()) || 0;
+};
+const formatCurrency = (val) => val.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+
 function App() {
     const [user, setUser] = useState(null);
     const [loading, setLoading] = useState(true);
@@ -105,13 +123,14 @@ function App() {
     const [agenda, setAgenda] = useState([]);
     
     // UI - FILTROS
-    const [timeFilter, setTimeFilter] = useState('TODOS'); // HOJE, MES, ANO, TODOS
+    const [timeFilter, setTimeFilter] = useState('TODOS');
     const [clientSearch, setClientSearch] = useState('');
     const [clientFilter, setClientFilter] = useState('TODOS');
     const [propertySearch, setPropertySearch] = useState('');
     const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
     
     const [showForm, setShowForm] = useState(false);
+    const [viewingProperty, setViewingProperty] = useState(null); // NOVO: Para o modal de detalhes
     const [editingId, setEditingId] = useState(null);
     const [saving, setSaving] = useState(false);
     
@@ -119,9 +138,14 @@ function App() {
     const [formData, setFormData] = useState({ 
         name: '', phone: '', email: '', birthDate: '', address: '', interest: '', 
         price: '', type: 'client', obs: '', image: '', date: '', time: '',
-        bedrooms: '', garage: '', area: '' 
+        bedrooms: '', garage: '', area: '', propertyStatus: 'PRONTO', developer: '',
+        imagesStr: '', videoUrl: '', pdfUrl: '' 
     });
     
+    // STATES DO NOVO FLUXO DE PAGAMENTO & CARROSSEL
+    const [fluxo, setFluxo] = useState({ ato: 0, mensaisQtd: 36, mensaisVal: 0, interQtd: 5, interVal: 0, chaves: 0 });
+    const [currentImgIndex, setCurrentImgIndex] = useState(0);
+
     const [wpMessages, setWpMessages] = useState({});
     const [bulkMessage, setBulkMessage] = useState('');
     const [selectedClients, setSelectedClients] = useState([]);
@@ -208,15 +232,38 @@ function App() {
         if (type === 'property') {
             setFormData({ 
                 name: item.title, price: item.price, type: 'property', image: item.image || '',
-                bedrooms: item.bedrooms || '', garage: item.garage || '', area: item.area || ''
+                bedrooms: item.bedrooms || '', garage: item.garage || '', area: item.area || '',
+                propertyStatus: item.propertyStatus || 'PRONTO', developer: item.developer || '',
+                videoUrl: item.videoUrl || '', pdfUrl: item.pdfUrl || '',
+                imagesStr: item.images ? item.images.join('\n') : ''
             });
         }
         if (type === 'agenda') setFormData({ name: item.title, date: item.date, time: item.time, type: 'agenda', obs: item.type || 'Visita' });
         setShowForm(true);
     };
 
+    // NOVO: ABRIR DETALHES COM CALCULADORA
+    const openPropertyDetails = (p) => {
+        setViewingProperty(p);
+        setCurrentImgIndex(0);
+        
+        // Inicializar Simulador de Fluxo
+        const price = parseCurrency(p.price);
+        setFluxo({
+            ato: price * 0.10, 
+            mensaisQtd: 36,
+            mensaisVal: (price * 0.40) / 36, 
+            interQtd: 3,
+            interVal: (price * 0.20) / 3, 
+            chaves: price * 0.30 
+        });
+    };
+
+    const nextImg = (max) => setCurrentImgIndex(prev => (prev + 1) % max);
+    const prevImg = (max) => setCurrentImgIndex(prev => (prev - 1 + max) % max);
+
     const handleSave = async () => {
-        if(!formData.name) return alert("Nome é obrigatório.");
+        if(!formData.name && formData.type !== 'property') return alert("Nome é obrigatório."); // Ajuste simples
         setSaving(true);
         try {
             const now = new Date().toISOString();
@@ -226,16 +273,27 @@ function App() {
                     birthDate: formData.birthDate, address: formData.address, interest: formData.interest, 
                     observations: formData.obs, updatedAt: now 
                 });
-                else if(formData.type === 'property') await updateDoc(doc(db, 'properties', editingId), { 
-                    title: formData.name, price: formData.price, image: formData.image,
-                    bedrooms: formData.bedrooms, garage: formData.garage, area: formData.area
-                });
+                else if(formData.type === 'property') {
+                    // Tratar imagens
+                    const imgs = formData.imagesStr.split('\n').filter(i => i.trim() !== '');
+                    await updateDoc(doc(db, 'properties', editingId), { 
+                        title: formData.name, price: formData.price, image: formData.image,
+                        bedrooms: formData.bedrooms, garage: formData.garage, area: formData.area,
+                        propertyStatus: formData.propertyStatus, developer: formData.developer,
+                        videoUrl: formData.videoUrl, pdfUrl: formData.pdfUrl, images: imgs
+                    });
+                }
                 else if(formData.type === 'agenda') await updateDoc(doc(db, 'agenda', editingId), { title: formData.name, date: formData.date, time: formData.time, type: formData.obs });
             } else {
-                if(formData.type === 'property') await addDoc(collection(db, 'properties'), { 
-                    title: formData.name, price: formData.price, image: formData.image, userId: user.uid,
-                    bedrooms: formData.bedrooms, garage: formData.garage, area: formData.area
-                });
+                if(formData.type === 'property') {
+                    const imgs = formData.imagesStr.split('\n').filter(i => i.trim() !== '');
+                    await addDoc(collection(db, 'properties'), { 
+                        title: formData.name, price: formData.price, image: formData.image, userId: user.uid,
+                        bedrooms: formData.bedrooms, garage: formData.garage, area: formData.area,
+                        propertyStatus: formData.propertyStatus, developer: formData.developer,
+                        videoUrl: formData.videoUrl, pdfUrl: formData.pdfUrl, images: imgs
+                    });
+                }
                 else if(formData.type === 'agenda') await addDoc(collection(db, 'agenda'), { title: formData.name, date: formData.date, time: formData.time, type: formData.obs, userId: user.uid });
                 else await addDoc(collection(db, 'clients'), { 
                     fullName: formData.name, phones: [formData.phone], email: formData.email,
@@ -245,7 +303,7 @@ function App() {
                 });
             }
             alert("Salvo com sucesso!"); setShowForm(false); setEditingId(null); 
-            setFormData({ name: '', phone: '', email: '', birthDate: '', address: '', interest: '', price: '', type: 'client', obs: '', image: '', date: '', time: '', bedrooms: '', garage: '', area: '' }); 
+            setFormData({ name: '', phone: '', email: '', birthDate: '', address: '', interest: '', price: '', type: 'client', obs: '', image: '', date: '', time: '', bedrooms: '', garage: '', area: '', propertyStatus: 'PRONTO', developer: '', imagesStr: '', videoUrl: '', pdfUrl: '' }); 
             loadData(user.uid);
         } catch (error) { alert("Erro: " + error.message); } 
         finally { setSaving(false); }
@@ -372,7 +430,6 @@ function App() {
                             <div className="glass-panel p-6 border-l-4 border-primary"><p className="opacity-50 text-xs font-bold uppercase mb-2">Vendas Fechadas</p><p className="text-3xl font-black text-green-600">{dashboardClients.filter(c => c.status === 'FECHADO').length}</p></div>
                         </div>
                         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                            {/* GRÁFICO FUNIL (FONTE AUMENTADA) */}
                             <div className="glass-panel p-6 lg:col-span-2 shadow-sm h-96">
                                 <h3 className="text-sm font-black uppercase opacity-50 mb-4">Funil de Vendas</h3>
                                 <ResponsiveContainer width="100%" height="90%">
@@ -386,7 +443,6 @@ function App() {
                                     </BarChart>
                                 </ResponsiveContainer>
                             </div>
-                            {/* LISTA DE CLIENTES (FONTE AUMENTADA E PADRONIZADA) */}
                             <div className="glass-panel p-6 h-96 overflow-y-auto">
                                 <h3 className="text-sm font-black uppercase opacity-50 mb-4">Últimos Leads</h3>
                                 <div className="space-y-3">
@@ -450,9 +506,9 @@ function App() {
                                    <div className="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition z-10"><button onClick={() => openEdit(client, 'client')} className="p-2 bg-slate-100 rounded-lg text-slate-500 hover:text-blue-600 shadow-sm transition">✎</button><button onClick={(e) => deleteItem('clients', client.id, e)} className="p-2 bg-slate-100 rounded-lg text-slate-500 hover:text-red-500 shadow-sm transition">✕</button></div>
                                    <div className="flex items-start gap-4 mb-4"><div className="w-12 h-12 rounded-full bg-slate-100 border border-white shadow-inner flex items-center justify-center text-lg font-black text-slate-400 flex-shrink-0">{client.fullName.charAt(0)}</div><div className="overflow-hidden"><h4 className="font-black text-base uppercase leading-tight truncate">{client.fullName}</h4><p className="text-[10px] font-bold text-blue-500 uppercase mt-1">{client.interest || 'Interesse não informado'}</p><span className={`inline-block mt-2 text-[9px] font-bold uppercase px-2 py-0.5 rounded-md ${client.status === 'FECHADO' ? 'bg-green-100 text-green-700' : client.status === 'PROPOSTA' ? 'bg-purple-100 text-purple-700' : 'bg-slate-100 text-slate-500'}`}>{client.status || 'LEAD'}</span></div></div>
                                    <div className="bg-slate-50/50 rounded-xl p-3 space-y-2 mb-4 border border-slate-100">
-                                       <div className="grid grid-cols-2 gap-2"><div><p className="text-[9px] font-bold uppercase opacity-50">Telefone</p><p className="text-[10px] font-bold truncate">{maskPhone(client.phones?.[0])}</p></div><div><p className="text-[9px] font-bold uppercase opacity-50">Nascimento</p><p className="text-[10px] font-bold truncate">{formatDate(client.birthDate)}</p></div></div>
-                                       <div><p className="text-[9px] font-bold uppercase opacity-50">Email</p><p className="text-[10px] font-bold truncate">{client.email || '-'}</p></div>
-                                       <div><p className="text-[9px] font-bold uppercase opacity-50">Endereço</p><p className="text-[10px] font-bold truncate">{client.address || '-'}</p></div>
+                                        <div className="grid grid-cols-2 gap-2"><div><p className="text-[9px] font-bold uppercase opacity-50">Telefone</p><p className="text-[10px] font-bold truncate">{maskPhone(client.phones?.[0])}</p></div><div><p className="text-[9px] font-bold uppercase opacity-50">Nascimento</p><p className="text-[10px] font-bold truncate">{formatDate(client.birthDate)}</p></div></div>
+                                        <div><p className="text-[9px] font-bold uppercase opacity-50">Email</p><p className="text-[10px] font-bold truncate">{client.email || '-'}</p></div>
+                                        <div><p className="text-[9px] font-bold uppercase opacity-50">Endereço</p><p className="text-[10px] font-bold truncate">{client.address || '-'}</p></div>
                                    </div>
                                    {client.observations && <div className="mb-4 text-[10px] italic opacity-60 bg-yellow-50 p-2 rounded-lg border border-yellow-100 line-clamp-3">"{client.observations}"</div>}
                                    <div className="mt-auto pt-2"><textarea placeholder="Escreva a mensagem aqui..." className="w-full text-xs p-2 bg-white border border-slate-200 rounded-lg mb-2 h-16 outline-none focus:border-green-400 transition resize-none" value={wpMessages[client.id] || ''} onChange={(e) => setWpMessages({...wpMessages, [client.id]: e.target.value})} onClick={(e) => e.stopPropagation()} /><button onClick={() => sendWp(client.phones?.[0], wpMessages[client.id] || '')} className="flex items-center justify-center gap-2 w-full py-3 bg-green-500 text-white rounded-xl font-black uppercase text-xs tracking-wider shadow-lg hover:bg-green-600 transition">Enviar WhatsApp ➜</button></div>
@@ -462,7 +518,7 @@ function App() {
                    </div>
                 )}
                 
-                {/* --- IMÓVEIS (GRID RESTAURADO) --- */}
+                {/* --- IMÓVEIS (GRID RESTAURADO + MODAL NOVO) --- */}
                 {activeTab === 'properties' && (
                    <div className="space-y-6 animate-fadeIn">
                        <div className="flex flex-col lg:flex-row justify-between items-end lg:items-center gap-4">
@@ -470,24 +526,33 @@ function App() {
                                <input placeholder="Buscar imóveis..." value={propertySearch} onChange={e => setPropertySearch(e.target.value)} className="settings-input pl-10" />
                                <span className="absolute left-3 top-3.5 text-slate-400">🔍</span>
                            </div>
-                           <button onClick={() => { setEditingId(null); setFormData({ name: '', phone: '', price: '', type: 'property', obs: '', image: '', date: '', time: '', bedrooms: '', garage: '', area: '' }); setShowForm(true); }} className="btn-primary px-6 py-3 rounded-xl text-xs uppercase shadow-lg whitespace-nowrap">+ Novo Imóvel</button>
+                           <button onClick={() => { setEditingId(null); setFormData({ name: '', phone: '', price: '', type: 'property', obs: '', image: '', date: '', time: '', bedrooms: '', garage: '', area: '', propertyStatus: 'PRONTO', developer: '', imagesStr: '', videoUrl: '', pdfUrl: '' }); setShowForm(true); }} className="btn-primary px-6 py-3 rounded-xl text-xs uppercase shadow-lg whitespace-nowrap">+ Novo Imóvel</button>
                        </div>
                        <p className="text-xs font-bold opacity-50 uppercase">Mostrando {filteredProperties.length} de {properties.length} imóveis</p>
                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                           {filteredProperties.map(p => (
-                               <div key={p.id} className="glass-panel overflow-hidden group flex flex-col">
-                                   <div className="prop-image h-48 relative">{p.image ? <img src={p.image} alt={p.title} /> : <div className="w-full h-full flex items-center justify-center bg-slate-100 text-slate-300 font-black text-4xl">🏠</div>}<div className="absolute top-4 right-4 flex gap-2"><button onClick={() => openEdit(p, 'property')} className="w-8 h-8 rounded-full bg-white/90 backdrop-blur-sm flex items-center justify-center text-slate-600 hover:text-blue-600 shadow-sm transition">✎</button><button onClick={(e) => deleteItem('properties', p.id, e)} className="w-8 h-8 rounded-full bg-white/90 backdrop-blur-sm flex items-center justify-center text-slate-600 hover:text-red-500 shadow-sm transition">✕</button></div></div>
-                                   <div className="p-6 flex-1 flex flex-col">
-                                       <h3 className="font-black text-xl uppercase leading-tight mb-2 truncate">{p.title}</h3>
-                                       <p className="text-2xl font-black text-primary mb-4 tracking-tighter" style={{color: theme.primary}}>{p.price}</p>
-                                       <div className="flex justify-between items-center bg-slate-50 p-3 rounded-xl border border-dashed border-slate-200 mb-6"><div className="text-center"><p className="text-[10px] font-bold uppercase opacity-40">Quartos</p><p className="font-black text-sm">{p.bedrooms || '-'}</p></div><div className="w-px h-6 bg-slate-200"></div><div className="text-center"><p className="text-[10px] font-bold uppercase opacity-40">Vagas</p><p className="font-black text-sm">{p.garage || '-'}</p></div><div className="w-px h-6 bg-slate-200"></div><div className="text-center"><p className="text-[10px] font-bold uppercase opacity-40">Área</p><p className="font-black text-sm">{p.area ? `${p.area}m²` : '-'}</p></div></div>
-                                       <div className="mt-auto grid grid-cols-2 gap-3">
-                                            <button className="py-3 bg-slate-100 text-slate-600 rounded-xl font-black uppercase text-xs hover:bg-slate-200 transition shadow-sm">Copiar Link</button>
-                                            <button onClick={() => shareProperty(p)} className="py-3 bg-green-500 text-white rounded-xl font-black uppercase text-xs hover:bg-green-600 transition shadow-sm flex items-center justify-center gap-2">Compartilhar ➜</button>
+                           {filteredProperties.map(p => {
+                               const thumb = p.images && p.images.length > 0 ? p.images[0] : p.image;
+                               return (
+                                   <div key={p.id} className="glass-panel overflow-hidden group flex flex-col cursor-pointer" onClick={() => openPropertyDetails(p)}>
+                                       <div className="prop-image h-48 relative">
+                                            {thumb ? <img src={thumb} alt={p.title} /> : <div className="w-full h-full flex items-center justify-center bg-slate-100 text-slate-300 font-black text-4xl">🏠</div>}
+                                            {p.propertyStatus === 'PLANTA' && <span className="absolute top-2 left-2 bg-blue-600 text-white text-[9px] font-black px-2 py-1 rounded shadow">LANÇAMENTO</span>}
+                                            <div className="absolute top-4 right-4 flex gap-2">
+                                                <button onClick={(e) => { e.stopPropagation(); openEdit(p, 'property'); }} className="w-8 h-8 rounded-full bg-white/90 backdrop-blur-sm flex items-center justify-center text-slate-600 hover:text-blue-600 shadow-sm transition">✎</button>
+                                                <button onClick={(e) => deleteItem('properties', p.id, e)} className="w-8 h-8 rounded-full bg-white/90 backdrop-blur-sm flex items-center justify-center text-slate-600 hover:text-red-500 shadow-sm transition">✕</button>
+                                            </div>
+                                       </div>
+                                       <div className="p-6 flex-1 flex flex-col">
+                                           <h3 className="font-black text-xl uppercase leading-tight mb-2 truncate">{p.title}</h3>
+                                           <p className="text-2xl font-black text-primary mb-4 tracking-tighter" style={{color: theme.primary}}>{p.price}</p>
+                                           <div className="flex justify-between items-center bg-slate-50 p-3 rounded-xl border border-dashed border-slate-200 mb-6"><div className="text-center"><p className="text-[10px] font-bold uppercase opacity-40">Quartos</p><p className="font-black text-sm">{p.bedrooms || '-'}</p></div><div className="w-px h-6 bg-slate-200"></div><div className="text-center"><p className="text-[10px] font-bold uppercase opacity-40">Vagas</p><p className="font-black text-sm">{p.garage || '-'}</p></div><div className="w-px h-6 bg-slate-200"></div><div className="text-center"><p className="text-[10px] font-bold uppercase opacity-40">Área</p><p className="font-black text-sm">{p.area ? `${p.area}m²` : '-'}</p></div></div>
+                                           <div className="mt-auto grid grid-cols-2 gap-3">
+                                                <button onClick={(e) => { e.stopPropagation(); shareProperty(p); }} className="py-3 bg-green-500 text-white rounded-xl font-black uppercase text-xs hover:bg-green-600 transition shadow-sm flex items-center justify-center gap-2 col-span-2">Compartilhar ➜</button>
+                                           </div>
                                        </div>
                                    </div>
-                               </div>
-                           ))}
+                               )
+                           })}
                        </div>
                    </div>
                 )}
@@ -532,14 +597,14 @@ function App() {
                 {/* --- WHATSAPP (RESTAURADO) --- */}
                 {activeTab === 'whatsapp' && (
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 animate-fadeIn h-[calc(100vh-140px)]">
-                       <div className="glass-panel p-6 flex flex-col">
-                           <div className="mb-6"><h3 className="text-lg font-black uppercase mb-2">Destinatários</h3><input placeholder="Buscar cliente..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="settings-input" /></div>
-                           <div className="flex-1 overflow-y-auto space-y-2 pr-2">{clients.filter(c => c.fullName.toLowerCase().includes(searchTerm.toLowerCase())).map(c => (<div key={c.id} onClick={() => toggleSelectClient(c.id)} className={`p-3 rounded-xl border flex items-center justify-between cursor-pointer transition ${selectedClients.includes(c.id) ? 'bg-primary-light border-primary' : 'bg-white border-slate-100 hover:border-blue-300'}`}><div className="flex items-center gap-3"><div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ${selectedClients.includes(c.id) ? 'bg-primary text-white' : 'bg-slate-100 text-slate-400'}`} style={selectedClients.includes(c.id) ? {backgroundColor: theme.primary} : {}}>{c.fullName.charAt(0)}</div><p className="text-xs font-bold uppercase">{c.fullName}</p></div><input type="checkbox" checked={selectedClients.includes(c.id)} readOnly className="custom-checkbox" /></div>))}</div>
-                       </div>
-                       <div className="lg:col-span-2 flex flex-col gap-6">
-                           <div className="glass-panel p-6"><h3 className="text-lg font-black uppercase mb-4">Mensagem</h3><div className="flex gap-2 mb-4 overflow-x-auto pb-2">{[{l:'Olá Inicial', t:'Olá! Tudo bem? Sou Alexandre e gostaria de apresentar oportunidades de imóveis.'}, {l:'Cobrar Visita', t:'Olá! Lembrete da nossa visita agendada para amanhã.'}].map((t,i) => (<button key={i} onClick={() => setBulkMessage(t.t)} className="px-3 py-1 bg-slate-100 text-slate-600 rounded-full text-[10px] font-black uppercase whitespace-nowrap hover:bg-slate-200 border border-slate-200">{t.l}</button>))}</div><textarea value={bulkMessage} onChange={e => setBulkMessage(e.target.value)} className="w-full h-32 p-4 bg-slate-50 rounded-xl border border-slate-200 outline-none focus:border-blue-400 font-medium text-sm" placeholder="Digite sua mensagem aqui..." /></div>
-                           <div className="glass-panel p-6 flex-1 bg-slate-900 text-white flex flex-col relative overflow-hidden"><div className="absolute top-0 right-0 w-64 h-64 bg-green-500 rounded-full blur-[100px] opacity-20"></div><h3 className="text-lg font-black uppercase mb-4 relative z-10">Central de Disparo</h3>{selectedClients.length === 0 ? (<div className="flex-1 flex flex-col items-center justify-center opacity-30"><span className="text-4xl mb-2">🚀</span><p className="text-xs font-bold uppercase">Selecione clientes</p></div>) : (<div className="flex-1 overflow-y-auto space-y-3 relative z-10 pr-2">{selectedClients.map(id => {const client = clients.find(c => c.id === id); return (<div key={id} className="flex items-center justify-between p-3 bg-white/10 rounded-xl border border-white/10"><span className="font-bold text-xs uppercase">{client?.fullName}</span><button onClick={() => sendWp(client?.phones?.[0], bulkMessage)} className="px-4 py-2 bg-green-500 hover:bg-green-400 text-white rounded-lg text-[10px] font-black uppercase transition shadow-lg">Enviar ➜</button></div>);})}</div>)}</div>
-                       </div>
+                        <div className="glass-panel p-6 flex flex-col">
+                            <div className="mb-6"><h3 className="text-lg font-black uppercase mb-2">Destinatários</h3><input placeholder="Buscar cliente..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="settings-input" /></div>
+                            <div className="flex-1 overflow-y-auto space-y-2 pr-2">{clients.filter(c => c.fullName.toLowerCase().includes(searchTerm.toLowerCase())).map(c => (<div key={c.id} onClick={() => toggleSelectClient(c.id)} className={`p-3 rounded-xl border flex items-center justify-between cursor-pointer transition ${selectedClients.includes(c.id) ? 'bg-primary-light border-primary' : 'bg-white border-slate-100 hover:border-blue-300'}`}><div className="flex items-center gap-3"><div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ${selectedClients.includes(c.id) ? 'bg-primary text-white' : 'bg-slate-100 text-slate-400'}`} style={selectedClients.includes(c.id) ? {backgroundColor: theme.primary} : {}}>{c.fullName.charAt(0)}</div><p className="text-xs font-bold uppercase">{c.fullName}</p></div><input type="checkbox" checked={selectedClients.includes(c.id)} readOnly className="custom-checkbox" /></div>))}</div>
+                        </div>
+                        <div className="lg:col-span-2 flex flex-col gap-6">
+                            <div className="glass-panel p-6"><h3 className="text-lg font-black uppercase mb-4">Mensagem</h3><div className="flex gap-2 mb-4 overflow-x-auto pb-2">{[{l:'Olá Inicial', t:'Olá! Tudo bem? Sou Alexandre e gostaria de apresentar oportunidades de imóveis.'}, {l:'Cobrar Visita', t:'Olá! Lembrete da nossa visita agendada para amanhã.'}].map((t,i) => (<button key={i} onClick={() => setBulkMessage(t.t)} className="px-3 py-1 bg-slate-100 text-slate-600 rounded-full text-[10px] font-black uppercase whitespace-nowrap hover:bg-slate-200 border border-slate-200">{t.l}</button>))}</div><textarea value={bulkMessage} onChange={e => setBulkMessage(e.target.value)} className="w-full h-32 p-4 bg-slate-50 rounded-xl border border-slate-200 outline-none focus:border-blue-400 font-medium text-sm" placeholder="Digite sua mensagem aqui..." /></div>
+                            <div className="glass-panel p-6 flex-1 bg-slate-900 text-white flex flex-col relative overflow-hidden"><div className="absolute top-0 right-0 w-64 h-64 bg-green-500 rounded-full blur-[100px] opacity-20"></div><h3 className="text-lg font-black uppercase mb-4 relative z-10">Central de Disparo</h3>{selectedClients.length === 0 ? (<div className="flex-1 flex flex-col items-center justify-center opacity-30"><span className="text-4xl mb-2">🚀</span><p className="text-xs font-bold uppercase">Selecione clientes</p></div>) : (<div className="flex-1 overflow-y-auto space-y-3 relative z-10 pr-2">{selectedClients.map(id => {const client = clients.find(c => c.id === id); return (<div key={id} className="flex items-center justify-between p-3 bg-white/10 rounded-xl border border-white/10"><span className="font-bold text-xs uppercase">{client?.fullName}</span><button onClick={() => sendWp(client?.phones?.[0], bulkMessage)} className="px-4 py-2 bg-green-500 hover:bg-green-400 text-white rounded-lg text-[10px] font-black uppercase transition shadow-lg">Enviar ➜</button></div>);})}</div>)}</div>
+                        </div>
                     </div>
                 )}
                 
@@ -550,7 +615,6 @@ function App() {
                             <h3 className="text-xl font-black uppercase italic">Desempenho Geral</h3>
                             <button onClick={() => window.print()} className="btn-primary px-6 py-2 rounded-xl text-xs uppercase shadow-lg">Imprimir Relatório</button>
                         </div>
-                        
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                             <div className="glass-panel p-8 border-t-4 border-primary">
                                 <p className="opacity-50 text-xs font-bold uppercase mb-2">Conversão</p>
@@ -568,7 +632,6 @@ function App() {
                                 <p className="text-[10px] opacity-50 mt-2 text-green-700">Se vender toda a carteira</p>
                             </div>
                         </div>
-                        
                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                             <div className="glass-panel p-8 flex flex-col h-96">
                                 <h4 className="text-sm font-black uppercase opacity-50 mb-4">Composição da Carteira (Leads vs Vendas)</h4>
@@ -607,7 +670,7 @@ function App() {
                 )}
             </main>
 
-            {/* MODAL GLOBAL */}
+            {/* MODAL GLOBAL (FORMULÁRIOS) */}
             {showForm && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-fadeIn">
                     <div className="glass-panel bg-white w-full max-w-lg p-8 max-h-[90vh] overflow-y-auto">
@@ -628,12 +691,19 @@ function App() {
                             {formData.type === 'property' && (
                                 <>
                                     <div><label className="text-xs font-bold opacity-50 uppercase ml-1">Preço (R$)</label><input className="settings-input mt-1" value={formData.price} onChange={e => setFormData({...formData, price: maskCurrency(e.target.value)})} placeholder="R$ 0,00" /></div>
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div><label className="text-xs font-bold text-slate-400 uppercase">Status</label><select className="settings-input mt-1" value={formData.propertyStatus} onChange={e => setFormData({...formData, propertyStatus: e.target.value})}><option value="PRONTO">Pronto</option><option value="PLANTA">Na Planta</option></select></div>
+                                        <div><label className="text-xs font-bold text-slate-400 uppercase">Construtora</label><input className="settings-input mt-1" value={formData.developer} onChange={e => setFormData({...formData, developer: e.target.value})} /></div>
+                                    </div>
                                     <div className="grid grid-cols-3 gap-2">
                                         <div><label className="text-xs font-bold opacity-50 uppercase ml-1">Quartos</label><input className="settings-input mt-1" type="text" inputMode="numeric" value={formData.bedrooms} onChange={e => setFormData({...formData, bedrooms: maskNumber(e.target.value)})} placeholder="0" /></div>
                                         <div><label className="text-xs font-bold opacity-50 uppercase ml-1">Vagas</label><input className="settings-input mt-1" type="text" inputMode="numeric" value={formData.garage} onChange={e => setFormData({...formData, garage: maskNumber(e.target.value)})} placeholder="0" /></div>
                                         <div><label className="text-xs font-bold opacity-50 uppercase ml-1">Área (m²)</label><input className="settings-input mt-1" type="text" inputMode="numeric" value={formData.area} onChange={e => setFormData({...formData, area: maskNumber(e.target.value)})} placeholder="0" /></div>
                                     </div>
-                                    <div><label className="text-xs font-bold opacity-50 uppercase ml-1">URL Imagem</label><input className="settings-input mt-1" value={formData.image} onChange={e => setFormData({...formData, image: e.target.value})} /></div>
+                                    <div><label className="text-xs font-bold opacity-50 uppercase ml-1">URL Imagem (Capa)</label><input className="settings-input mt-1" value={formData.image} onChange={e => setFormData({...formData, image: e.target.value})} /></div>
+                                    <div><label className="text-xs font-bold text-slate-400 uppercase">Fotos Extras (Links por linha)</label><textarea className="settings-input mt-1 h-20" value={formData.imagesStr || ''} onChange={e => setFormData({...formData, imagesStr: e.target.value})} placeholder="http://...\nhttp://..." /></div>
+                                    <div><label className="text-xs font-bold text-slate-400 uppercase">Vídeo (YouTube)</label><input className="settings-input mt-1" value={formData.videoUrl || ''} onChange={e => setFormData({...formData, videoUrl: e.target.value})} /></div>
+                                    <div><label className="text-xs font-bold text-slate-400 uppercase">PDF (Link)</label><input className="settings-input mt-1" value={formData.pdfUrl || ''} onChange={e => setFormData({...formData, pdfUrl: e.target.value})} /></div>
                                 </>
                             )}
                             
@@ -643,6 +713,111 @@ function App() {
                             {!editingId && (<div><label className="text-xs font-bold opacity-50 uppercase ml-1">Categoria</label><select className="settings-input mt-1" value={formData.type} onChange={e => setFormData({...formData, type: e.target.value})}><option value="client">Cliente</option><option value="property">Imóvel</option><option value="agenda">Agenda</option></select></div>)}
                         </div>
                         <div className="flex gap-4 mt-8"><button onClick={handleSave} disabled={saving} className="btn-primary flex-1 py-4 rounded-xl uppercase shadow-lg disabled:opacity-50 disabled:cursor-not-allowed">{saving ? 'SALVANDO...' : 'SALVAR'}</button><button onClick={() => setShowForm(false)} disabled={saving} className="flex-1 bg-slate-100 text-slate-500 font-bold py-4 rounded-xl uppercase hover:bg-slate-200 transition">CANCELAR</button></div>
+                    </div>
+                </div>
+            )}
+
+            {/* MODAL DETALHES DO IMÓVEL (NOVO FLUXO) */}
+            {viewingProperty && (
+                <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/80 backdrop-blur-md p-4 animate-fadeIn">
+                    <div className="bg-white w-full max-w-5xl h-[90vh] rounded-2xl overflow-hidden flex flex-col relative shadow-2xl">
+                        <button onClick={() => setViewingProperty(null)} className="absolute top-4 right-4 z-20 w-10 h-10 bg-white rounded-full shadow-lg flex items-center justify-center font-bold hover:bg-slate-100">✕</button>
+                        
+                        <div className="flex-1 overflow-y-auto">
+                            {/* CARROSSEL */}
+                            <div className="carousel-container h-96 bg-black relative">
+                                {viewingProperty.images && viewingProperty.images.length > 0 ? (
+                                    <>
+                                        <img src={viewingProperty.images[currentImgIndex]} className="w-full h-full object-contain" />
+                                        <button onClick={() => prevImg(viewingProperty.images.length)} className="carousel-btn left">◀</button>
+                                        <button onClick={() => nextImg(viewingProperty.images.length)} className="carousel-btn right">▶</button>
+                                        <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex gap-2">
+                                            {viewingProperty.images.map((_, idx) => (
+                                                <div key={idx} className={`w-2 h-2 rounded-full ${idx === currentImgIndex ? 'bg-white' : 'bg-white/30'}`}></div>
+                                            ))}
+                                        </div>
+                                    </>
+                                ) : (
+                                    <div className="w-full h-full flex items-center justify-center text-white text-4xl bg-slate-800">🏠 Sem Fotos Extras</div>
+                                )}
+                            </div>
+
+                            <div className="p-8 grid grid-cols-1 lg:grid-cols-3 gap-8">
+                                <div className="lg:col-span-2 space-y-6">
+                                    <div>
+                                        <span className="bg-blue-100 text-blue-700 text-[10px] font-black px-2 py-1 rounded uppercase">{viewingProperty.propertyStatus || 'PRONTO'}</span>
+                                        <h2 className="text-3xl font-black uppercase mt-2 leading-none">{viewingProperty.title}</h2>
+                                        <p className="text-slate-500 font-medium mt-1">{viewingProperty.developer || 'Incorporadora'}</p>
+                                    </div>
+
+                                    <div className="flex gap-4 border-y border-slate-100 py-4">
+                                        <div className="text-center px-4 border-r border-slate-100"><p className="text-2xl font-black">{viewingProperty.bedrooms}</p><p className="text-[10px] uppercase font-bold text-slate-400">Quartos</p></div>
+                                        <div className="text-center px-4 border-r border-slate-100"><p className="text-2xl font-black">{viewingProperty.garage}</p><p className="text-[10px] uppercase font-bold text-slate-400">Vagas</p></div>
+                                        <div className="text-center px-4"><p className="text-2xl font-black">{viewingProperty.area}m²</p><p className="text-[10px] uppercase font-bold text-slate-400">Área</p></div>
+                                    </div>
+                                    
+                                    <div className="flex gap-3">
+                                        {viewingProperty.videoUrl && <button onClick={() => window.open(viewingProperty.videoUrl)} className="flex-1 py-3 bg-red-50 text-red-600 rounded-xl font-bold uppercase text-xs hover:bg-red-100 flex items-center justify-center gap-2">▶ Ver Vídeo</button>}
+                                        {viewingProperty.pdfUrl && <button onClick={() => window.open(viewingProperty.pdfUrl)} className="flex-1 py-3 bg-slate-100 text-slate-600 rounded-xl font-bold uppercase text-xs hover:bg-slate-200 flex items-center justify-center gap-2">📄 Baixar PDF</button>}
+                                    </div>
+                                </div>
+
+                                {/* CALCULADORA DE FLUXO */}
+                                <div className="bg-slate-50 p-6 rounded-2xl border border-slate-200 h-fit">
+                                    <h3 className="font-black text-lg uppercase mb-4 text-slate-700">Fluxo de Pagamento</h3>
+                                    <div className="mb-4 text-center p-2 bg-blue-100 rounded-lg">
+                                        <p className="text-xs font-bold text-blue-500 uppercase">Valor Total do Imóvel</p>
+                                        <p className="text-2xl font-black text-blue-700">{viewingProperty.price}</p>
+                                    </div>
+                                    
+                                    <div className="space-y-4 mb-6">
+                                        <div className="grid grid-cols-2 gap-2 items-center">
+                                            <span className="fluxo-label">Ato / Sinal (R$)</span>
+                                            <input type="number" className="fluxo-input" value={fluxo.ato} onChange={e => setFluxo({...fluxo, ato: Number(e.target.value)})} />
+                                        </div>
+                                        <div>
+                                            <span className="fluxo-label block mb-1">Mensais</span>
+                                            <div className="grid grid-cols-2 gap-2">
+                                                <input type="number" className="fluxo-input text-center" value={fluxo.mensaisQtd} onChange={e => setFluxo({...fluxo, mensaisQtd: Number(e.target.value)})} placeholder="Qtd" />
+                                                <input type="number" className="fluxo-input" value={fluxo.mensaisVal} onChange={e => setFluxo({...fluxo, mensaisVal: Number(e.target.value)})} placeholder="Valor" />
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <span className="fluxo-label block mb-1">Intermediárias</span>
+                                            <div className="grid grid-cols-2 gap-2">
+                                                <input type="number" className="fluxo-input text-center" value={fluxo.interQtd} onChange={e => setFluxo({...fluxo, interQtd: Number(e.target.value)})} placeholder="Qtd" />
+                                                <input type="number" className="fluxo-input" value={fluxo.interVal} onChange={e => setFluxo({...fluxo, interVal: Number(e.target.value)})} placeholder="Valor" />
+                                            </div>
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-2 items-center">
+                                            <span className="fluxo-label">Chaves/Financ.</span>
+                                            <input type="number" className="fluxo-input" value={fluxo.chaves} onChange={e => setFluxo({...fluxo, chaves: Number(e.target.value)})} />
+                                        </div>
+                                    </div>
+
+                                    <div className="bg-white p-4 rounded-xl border border-slate-200">
+                                        {(() => {
+                                            const totalImovel = parseCurrency(viewingProperty.price);
+                                            const totalFluxo = fluxo.ato + (fluxo.mensaisQtd * fluxo.mensaisVal) + (fluxo.interQtd * fluxo.interVal) + fluxo.chaves;
+                                            const diff = totalImovel - totalFluxo;
+                                            const isMatch = Math.abs(diff) < 1;
+                                            
+                                            return (
+                                                <>
+                                                    <div className="flex justify-between items-center mb-2">
+                                                        <span className="text-xs font-bold uppercase text-slate-500">Total Fluxo:</span>
+                                                        <span className={`font-black ${isMatch ? 'text-green-600' : 'text-slate-800'}`}>{formatCurrency(totalFluxo)}</span>
+                                                    </div>
+                                                    <div className={`text-xs font-bold uppercase p-2 rounded text-center ${isMatch ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                                                        {isMatch ? "Fluxo Completo ✅" : `Falta: ${formatCurrency(diff)}`}
+                                                    </div>
+                                                </>
+                                            )
+                                        })()}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             )}
