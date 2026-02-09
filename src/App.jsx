@@ -1,38 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  Home, 
-  BarChart2, 
-  Search, 
-  Users, 
-  UserCheck, 
-  Target, 
-  FileText, 
-  Calendar, 
-  Phone, 
-  MapPin, 
-  FolderKanban,
-  File,
-  ChevronLeft,
-  ChevronRight,
-  Bell,
-  Settings,
-  Zap,
-  TrendingUp,
-  Clock,
-  CheckCircle,
-  Megaphone,
-  Eye,
-  Edit,
-  Trash2,
-  Plus
-} from 'lucide-react';
 import { db, auth } from './firebase/config';
 import { collection, addDoc, getDocs, query, where, updateDoc, doc, deleteDoc } from 'firebase/firestore';
 import { onAuthStateChanged, signOut, updatePassword } from 'firebase/auth';
 import Login from './pages/Login';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, PieChart, Pie, Legend } from 'recharts';
 
-// --- MOTOR DE TEMAS (RESTAURADO) ---
+// --- MOTOR DE TEMAS ---
 const THEMES = {
     'blue': { name: 'Tech Blue', primary: '#2563eb', secondary: '#1e40af', bg: '#f8fafc', sidebar: '#ffffff', text: '#1e293b', accent: '#3b82f6' },
     'dark': { name: 'Midnight Luxury', primary: '#d4af37', secondary: '#b4941f', bg: '#0f172a', sidebar: '#1e293b', text: '#f8fafc', accent: '#fbbf24' },
@@ -40,35 +13,130 @@ const THEMES = {
     'purple': { name: 'Royal Estate', primary: '#7e22ce', secondary: '#6b21a8', bg: '#faf5ff', sidebar: '#ffffff', text: '#581c87', accent: '#9333ea' },
 };
 
-// --- ESTILOS GLOBAIS (FUNDIDOS) ---
+// --- ESTILOS GLOBAIS ---
 const TailwindStyle = ({ theme }) => (
   <style>{`
     @import url('https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css');
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
     
-    :root { --primary: ${theme.primary}; --secondary: ${theme.secondary}; --bg-main: ${theme.bg}; --sidebar-bg: ${theme.sidebar}; --text-main: ${theme.text}; --accent: ${theme.accent}; }
-    body { font-family: 'Inter', sans-serif; background-color: var(--bg-main); color: var(--text-main); transition: background-color 0.5s ease; }
+    :root { 
+      --primary: ${theme.primary}; 
+      --secondary: ${theme.secondary}; 
+      --bg-main: ${theme.bg}; 
+      --sidebar-bg: ${theme.sidebar}; 
+      --text-main: ${theme.text}; 
+      --accent: ${theme.accent}; 
+    }
     
-    .glass-panel { background: ${theme.name.includes('Dark') ? 'rgba(30, 41, 59, 0.7)' : 'rgba(255, 255, 255, 1)'}; border: 1px solid ${theme.name.includes('Dark') ? 'rgba(255,255,255,0.1)' : '#e2e8f0'}; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); border-radius: 1rem; transition: all 0.3s ease; }
-    .glass-panel:hover { transform: translateY(-2px); box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); border-color: var(--primary); }
+    body { 
+      font-family: 'Inter', sans-serif; 
+      background-color: var(--bg-main); 
+      color: var(--text-main); 
+      transition: background-color 0.5s ease; 
+    }
     
-    .sidebar-link { transition: all 0.2s; border-radius: 0.75rem; font-weight: 600; font-size: 0.9rem; display: flex; align-items: center; gap: 0.75rem; padding: 0.85rem 1rem; color: #64748b; }
-    .sidebar-link.active { background-color: var(--primary); color: white; box-shadow: 0 4px 12px -2px rgba(0, 0, 0, 0.2); }
-    .sidebar-link:hover:not(.active) { background-color: rgba(0,0,0,0.03); color: var(--text-main); }
+    .glass-panel { 
+      background: ${theme.name.includes('Dark') ? 'rgba(30, 41, 59, 0.7)' : 'rgba(255, 255, 255, 1)'}; 
+      border: 1px solid ${theme.name.includes('Dark') ? 'rgba(255,255,255,0.1)' : '#e2e8f0'}; 
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); 
+      border-radius: 1rem; 
+      transition: all 0.3s ease; 
+    }
+    
+    .glass-panel:hover { 
+      transform: translateY(-2px); 
+      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); 
+      border-color: var(--primary); 
+    }
+    
+    .sidebar-link { 
+      transition: all 0.2s; 
+      border-radius: 0.75rem; 
+      font-weight: 600; 
+      font-size: 0.9rem; 
+      display: flex; 
+      align-items: center; 
+      gap: 0.75rem; 
+      padding: 0.85rem 1rem; 
+      color: #64748b; 
+    }
+    
+    .sidebar-link.active { 
+      background-color: var(--primary); 
+      color: white; 
+      box-shadow: 0 4px 12px -2px rgba(0, 0, 0, 0.2); 
+    }
+    
+    .sidebar-link:hover:not(.active) { 
+      background-color: rgba(0,0,0,0.03); 
+      color: var(--text-main); 
+    }
 
-    .btn-primary { background: var(--primary); color: white; border: none; font-weight: 700; transition: 0.2s; }
-    .btn-primary:hover { background: var(--secondary); transform: scale(1.02); }
-    .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+    .btn-primary { 
+      background: var(--primary); 
+      color: white; 
+      border: none; 
+      font-weight: 700; 
+      transition: 0.2s; 
+    }
     
-    .settings-input { width: 100%; padding: 0.75rem 1rem; background-color: rgba(0,0,0,0.03); border-radius: 0.75rem; border: 1px solid #cbd5e1; font-weight: 500; outline: none; transition: 0.2s; color: var(--text-main); }
-    .settings-input:focus { background-color: ${theme.name.includes('Dark') ? '#334155' : '#ffffff'}; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(0,0,0,0.1); }
+    .btn-primary:hover { 
+      background: var(--secondary); 
+      transform: scale(1.02); 
+    }
     
-    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-    .animate-fadeIn { animation: fadeIn 0.4s ease-out forwards; }
-    .scrollbar-hide::-webkit-scrollbar { display: none; }
+    .btn-primary:disabled { 
+      opacity: 0.5; 
+      cursor: not-allowed; 
+      transform: none; 
+    }
     
-    .custom-checkbox { width: 1.2rem; height: 1.2rem; border-radius: 0.4rem; border: 2px solid #cbd5e1; appearance: none; cursor: pointer; transition: 0.2s; }
-    .custom-checkbox:checked { background-color: var(--primary); border-color: var(--primary); background-image: url("data:image/svg+xml,%3csvg viewBox='0 0 16 16' fill='white' xmlns='http://www.w3.org/2000/svg'%3e%3cpath d='M12.207 4.793a1 1 0 010 1.414l-5 5a1 1 0 01-1.414 0l-2.5-2.5a1 1 0 011.414-1.414L6.5 9.086l4.293-4.293a1 1 0 011.414 0z'/%3e%3c/svg%3e"); }
+    .settings-input { 
+      width: 100%; 
+      padding: 0.75rem 1rem; 
+      background-color: rgba(0,0,0,0.03); 
+      border-radius: 0.75rem; 
+      border: 1px solid #cbd5e1; 
+      font-weight: 500; 
+      outline: none; 
+      transition: 0.2s; 
+      color: var(--text-main); 
+    }
+    
+    .settings-input:focus { 
+      background-color: ${theme.name.includes('Dark') ? '#334155' : '#ffffff'}; 
+      border-color: var(--primary); 
+      box-shadow: 0 0 0 3px rgba(0,0,0,0.1); 
+    }
+    
+    @keyframes fadeIn { 
+      from { opacity: 0; transform: translateY(10px); } 
+      to { opacity: 1; transform: translateY(0); } 
+    }
+    
+    .animate-fadeIn { 
+      animation: fadeIn 0.4s ease-out forwards; 
+    }
+    
+    .scrollbar-hide::-webkit-scrollbar { 
+      display: none; 
+    }
+    
+    .custom-checkbox { 
+      width: 1.2rem; 
+      height: 1.2rem; 
+      border-radius: 0.4rem; 
+      border: 2px solid #cbd5e1; 
+      appearance: none; 
+      cursor: pointer; 
+      transition: 0.2s; 
+    }
+    
+    .custom-checkbox:checked { 
+      background-color: var(--primary); 
+      border-color: var(--primary); 
+      background-image: url("data:image/svg+xml,%3csvg viewBox='0 0 16 16' fill='white' xmlns='http://www.w3.org/2000/svg'%3e%3cpath d='M12.207 4.793a1 1 0 010 1.414l-5 5a1 1 0 01-1.414 0l-2.5-2.5a1 1 0 011.414-1.414L6.5 9.086l4.293-4.293a1 1 0 011.414 0z'/%3e%3c/svg%3e"); 
+    }
 
     @media print {
         .no-print { display: none !important; }
@@ -114,6 +182,39 @@ const parseCurrency = (v) => {
     return parseFloat(String(v).replace('R$', '').replace(/\./g, '').replace(',', '.').trim()) || 0;
 };
 
+// --- ÍCONES SIMPLIFICADOS (sem lucide-react) ---
+const Icon = ({ name, className = '' }) => {
+  const icons = {
+    home: '🏠',
+    chart: '📊',
+    search: '🔍',
+    users: '👥',
+    userCheck: '✅',
+    target: '🎯',
+    fileText: '📝',
+    calendar: '📅',
+    phone: '📞',
+    mapPin: '📍',
+    folder: '📁',
+    file: '📄',
+    megaphone: '📢',
+    bell: '🔔',
+    settings: '⚙️',
+    zap: '⚡',
+    trendingUp: '📈',
+    clock: '🕐',
+    checkCircle: '✅',
+    eye: '👁️',
+    edit: '✏️',
+    trash: '🗑️',
+    plus: '➕',
+    chevronLeft: '◀',
+    chevronRight: '▶'
+  };
+  
+  return <span className={`inline-block ${className}`}>{icons[name] || '🔘'}</span>;
+};
+
 function App() {
     const [user, setUser] = useState(null);
     const [loading, setLoading] = useState(true);
@@ -156,27 +257,27 @@ function App() {
 
     const theme = THEMES[currentTheme] || THEMES['blue'];
 
-    // Módulos da Sidebar - CORRETOS como na imagem
+    // Módulos da Sidebar
     const mainModules = [
-        { id: 'dashboard', name: 'Página Inicial', icon: Home, count: 24, color: 'text-blue-600', bgColor: 'bg-blue-50', borderColor: 'border-blue-200' },
-        { id: 'relatorios', name: 'Relatórios', icon: BarChart2, count: 12, color: 'text-green-600', bgColor: 'bg-green-50', borderColor: 'border-green-200' },
-        { id: 'search', name: 'Pesquisar', icon: Search, count: null, color: 'text-gray-600', bgColor: 'bg-gray-50', borderColor: 'border-gray-200' },
+        { id: 'dashboard', name: 'Página Inicial', icon: 'home', count: 24, color: 'text-blue-600', bgColor: 'bg-blue-50', borderColor: 'border-blue-200' },
+        { id: 'relatorios', name: 'Relatórios', icon: 'chart', count: 12, color: 'text-green-600', bgColor: 'bg-green-50', borderColor: 'border-green-200' },
+        { id: 'search', name: 'Pesquisar', icon: 'search', count: null, color: 'text-gray-600', bgColor: 'bg-gray-50', borderColor: 'border-gray-200' },
     ];
 
     const crmModules = [
-        { id: 'clients', name: 'Clientes Potenciais', icon: UserCheck, count: 24, color: 'text-blue-600', bgColor: 'bg-blue-50', borderColor: 'border-blue-200' },
-        { id: 'contacts', name: 'Contatos', icon: Users, count: 156, color: 'text-green-600', bgColor: 'bg-green-50', borderColor: 'border-green-200' },
-        { id: 'deals', name: 'Negócios', icon: Target, count: 18, color: 'text-orange-600', bgColor: 'bg-orange-50', borderColor: 'border-orange-200' },
-        { id: 'tasks', name: 'Tarefas', icon: FileText, count: 8, color: 'text-red-600', bgColor: 'bg-red-50', borderColor: 'border-red-200' },
-        { id: 'meetings', name: 'Reuniões', icon: Calendar, count: 5, color: 'text-purple-600', bgColor: 'bg-purple-50', borderColor: 'border-purple-200' },
-        { id: 'calls', name: 'Chamadas', icon: Phone, count: 15, color: 'text-cyan-600', bgColor: 'bg-cyan-50', borderColor: 'border-cyan-200' },
+        { id: 'clients', name: 'Clientes Potenciais', icon: 'userCheck', count: 24, color: 'text-blue-600', bgColor: 'bg-blue-50', borderColor: 'border-blue-200' },
+        { id: 'contacts', name: 'Contatos', icon: 'users', count: 156, color: 'text-green-600', bgColor: 'bg-green-50', borderColor: 'border-green-200' },
+        { id: 'deals', name: 'Negócios', icon: 'target', count: 18, color: 'text-orange-600', bgColor: 'bg-orange-50', borderColor: 'border-orange-200' },
+        { id: 'tasks', name: 'Tarefas', icon: 'fileText', count: 8, color: 'text-red-600', bgColor: 'bg-red-50', borderColor: 'border-red-200' },
+        { id: 'meetings', name: 'Reuniões', icon: 'calendar', count: 5, color: 'text-purple-600', bgColor: 'bg-purple-50', borderColor: 'border-purple-200' },
+        { id: 'calls', name: 'Chamadas', icon: 'phone', count: 15, color: 'text-cyan-600', bgColor: 'bg-cyan-50', borderColor: 'border-cyan-200' },
     ];
 
     const additionalModules = [
-        { id: 'campaigns', name: 'Campanhas', icon: Megaphone, count: 7, color: 'text-pink-600', bgColor: 'bg-pink-50', borderColor: 'border-pink-200' },
-        { id: 'documents', name: 'Documentos', icon: File, count: 34, color: 'text-yellow-600', bgColor: 'bg-yellow-50', borderColor: 'border-yellow-200' },
-        { id: 'visits', name: 'Visitas', icon: MapPin, count: 3, color: 'text-teal-600', bgColor: 'bg-teal-50', borderColor: 'border-teal-200' },
-        { id: 'projects', name: 'Projects', icon: FolderKanban, count: 6, color: 'text-indigo-600', bgColor: 'bg-indigo-50', borderColor: 'border-indigo-200' },
+        { id: 'campaigns', name: 'Campanhas', icon: 'megaphone', count: 7, color: 'text-pink-600', bgColor: 'bg-pink-50', borderColor: 'border-pink-200' },
+        { id: 'documents', name: 'Documentos', icon: 'file', count: 34, color: 'text-yellow-600', bgColor: 'bg-yellow-50', borderColor: 'border-yellow-200' },
+        { id: 'visits', name: 'Visitas', icon: 'mapPin', count: 3, color: 'text-teal-600', bgColor: 'bg-teal-50', borderColor: 'border-teal-200' },
+        { id: 'projects', name: 'Projects', icon: 'folder', count: 6, color: 'text-indigo-600', bgColor: 'bg-indigo-50', borderColor: 'border-indigo-200' },
     ];
 
     // LOAD DATA
@@ -200,13 +301,17 @@ function App() {
             const savedProfile = localStorage.getItem('crm_profile');
             if(savedProfile) setUserProfile(JSON.parse(savedProfile));
             
-        } catch (error) { console.error("Erro:", error); }
+        } catch (error) { console.error("Erro ao carregar dados:", error); }
     };
 
     useEffect(() => {
         const unsub = onAuthStateChanged(auth, (u) => {
-            if (u) { setUser(u); loadData(u.uid); }
-            else setUser(null); 
+            if (u) { 
+                setUser(u); 
+                loadData(u.uid); 
+            } else { 
+                setUser(null); 
+            }
             setLoading(false);
         });
         return () => unsub();
@@ -220,7 +325,7 @@ function App() {
     
     const saveProfile = () => {
         localStorage.setItem('crm_profile', JSON.stringify(userProfile));
-        alert("Perfil salvo neste dispositivo!");
+        alert("Perfil salvo!");
     };
 
     const handlePasswordChange = async () => {
@@ -386,8 +491,11 @@ function App() {
                 imagesStr: '', videoUrl: '', pdfUrl: '' 
             }); 
             loadData(user.uid);
-        } catch (error) { alert("Erro: " + error.message); } 
-        finally { setSaving(false); }
+        } catch (error) { 
+            alert("Erro: " + error.message); 
+        } finally { 
+            setSaving(false); 
+        }
     };
 
     const toggleSelectClient = (id) => {
@@ -480,10 +588,10 @@ function App() {
                     {!isSidebarCollapsed && (
                         <div className="flex items-center space-x-3">
                             <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-blue-800 rounded-lg flex items-center justify-center">
-                                <span className="text-white font-bold">CRM</span>
+                                <span className="text-white font-bold text-lg">C</span>
                             </div>
                             <div>
-                                <h1 className="text-xl font-bold text-gray-900">Zoho CRM</h1>
+                                <h1 className="text-xl font-bold text-gray-900">Meu CRM</h1>
                                 <p className="text-xs text-gray-500">Professional</p>
                             </div>
                         </div>
@@ -493,7 +601,11 @@ function App() {
                         onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
                         className="p-2 hover:bg-gray-100 rounded-lg transition-colors ml-auto"
                     >
-                        {isSidebarCollapsed ? <ChevronRight size={20} /> : <ChevronLeft size={20} />}
+                        {isSidebarCollapsed ? (
+                            <Icon name="chevronRight" className="text-gray-500 text-lg" />
+                        ) : (
+                            <Icon name="chevronLeft" className="text-gray-500 text-lg" />
+                        )}
                     </button>
                 </div>
 
@@ -501,7 +613,7 @@ function App() {
                 {!isSidebarCollapsed && (
                     <div className="p-4 border-b border-gray-200">
                         <div className="relative">
-                            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
+                            <Icon name="search" className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 text-lg" />
                             <input
                                 type="text"
                                 placeholder="Pesquisar módulos..."
@@ -533,7 +645,7 @@ function App() {
                             >
                                 <div className="flex items-center space-x-3">
                                     <div className={`p-2 rounded-md ${activeModule === module.name ? module.bgColor : 'bg-gray-100'}`}>
-                                        <module.icon size={18} className={activeModule === module.name ? module.color : 'text-gray-500'} />
+                                        <Icon name={module.icon} className={`text-lg ${activeModule === module.name ? module.color : 'text-gray-500'}`} />
                                     </div>
                                     {!isSidebarCollapsed && <span className="font-medium">{module.name}</span>}
                                 </div>
@@ -567,7 +679,7 @@ function App() {
                             >
                                 <div className="flex items-center space-x-3">
                                     <div className={`p-2 rounded-md ${activeModule === module.name ? module.bgColor : 'bg-gray-100'}`}>
-                                        <module.icon size={18} className={activeModule === module.name ? module.color : 'text-gray-500'} />
+                                        <Icon name={module.icon} className={`text-lg ${activeModule === module.name ? module.color : 'text-gray-500'}`} />
                                     </div>
                                     {!isSidebarCollapsed && <span className="font-medium">{module.name}</span>}
                                 </div>
@@ -601,7 +713,7 @@ function App() {
                             >
                                 <div className="flex items-center space-x-3">
                                     <div className={`p-2 rounded-md ${activeModule === module.name ? module.bgColor : 'bg-gray-100'}`}>
-                                        <module.icon size={18} className={activeModule === module.name ? module.color : 'text-gray-500'} />
+                                        <Icon name={module.icon} className={`text-lg ${activeModule === module.name ? module.color : 'text-gray-500'}`} />
                                     </div>
                                     {!isSidebarCollapsed && <span className="font-medium">{module.name}</span>}
                                 </div>
@@ -632,7 +744,7 @@ function App() {
             </div>
 
             {/* Conteúdo Principal */}
-            <div className="flex-1 overflow-auto ml-20 lg:ml-64">
+            <div className="flex-1 overflow-auto">
                 <div className="max-w-7xl mx-auto p-6">
                     {/* Header */}
                     <div className="mb-8">
@@ -650,13 +762,13 @@ function App() {
                                 <div className="bg-white rounded-xl shadow border border-gray-200 p-6">
                                     <div className="flex items-center justify-between mb-6">
                                         <h3 className="text-lg font-semibold text-gray-800">Visão Geral</h3>
-                                        <BarChart2 className="text-blue-500" size={24} />
+                                        <Icon name="chart" className="text-blue-500 text-2xl" />
                                     </div>
                                     <div className="space-y-4">
                                         <div className="flex justify-between items-center py-3 border-b border-gray-100">
                                             <div className="flex items-center space-x-3">
                                                 <div className="p-2 rounded-lg bg-blue-50">
-                                                    <Target size={18} className="text-blue-600" />
+                                                    <Icon name="target" className="text-blue-600 text-lg" />
                                                 </div>
                                                 <span className="text-gray-700">Negócios Ativos</span>
                                             </div>
@@ -665,7 +777,7 @@ function App() {
                                         <div className="flex justify-between items-center py-3 border-b border-gray-100">
                                             <div className="flex items-center space-x-3">
                                                 <div className="p-2 rounded-lg bg-green-50">
-                                                    <Users size={18} className="text-green-600" />
+                                                    <Icon name="users" className="text-green-600 text-lg" />
                                                 </div>
                                                 <span className="text-gray-700">Contatos</span>
                                             </div>
@@ -674,7 +786,7 @@ function App() {
                                         <div className="flex justify-between items-center">
                                             <div className="flex items-center space-x-3">
                                                 <div className="p-2 rounded-lg bg-red-50">
-                                                    <FileText size={18} className="text-red-600" />
+                                                    <Icon name="fileText" className="text-red-600 text-lg" />
                                                 </div>
                                                 <span className="text-gray-700">Tarefas Pendentes</span>
                                             </div>
@@ -687,7 +799,7 @@ function App() {
                                 <div className="bg-white rounded-xl shadow border border-gray-200 p-6">
                                     <div className="flex items-center justify-between mb-6">
                                         <h3 className="text-lg font-semibold text-gray-800">Atividades Recentes</h3>
-                                        <Clock className="text-green-500" size={24} />
+                                        <Icon name="clock" className="text-green-500 text-2xl" />
                                     </div>
                                     <div className="space-y-4">
                                         <div className="flex items-start space-x-3 group hover:bg-gray-50 p-2 rounded-lg transition-colors">
@@ -718,19 +830,19 @@ function App() {
                                 <div className="bg-white rounded-xl shadow border border-gray-200 p-6">
                                     <div className="flex items-center justify-between mb-6">
                                         <h3 className="text-lg font-semibold text-gray-800">Ações Rápidas</h3>
-                                        <Zap className="text-orange-500" size={24} />
+                                        <Icon name="zap" className="text-orange-500 text-2xl" />
                                     </div>
                                     <div className="space-y-3">
                                         <button className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 px-4 rounded-lg font-medium transition-colors flex items-center justify-center space-x-2">
-                                            <Plus size={18} />
+                                            <Icon name="plus" className="text-lg" />
                                             <span>Novo Cliente Potencial</span>
                                         </button>
                                         <button className="w-full border border-blue-600 text-blue-600 hover:bg-blue-50 py-3 px-4 rounded-lg font-medium transition-colors flex items-center justify-center space-x-2">
-                                            <Calendar size={18} />
+                                            <Icon name="calendar" className="text-lg" />
                                             <span>Agendar Reunião</span>
                                         </button>
                                         <button className="w-full border border-gray-300 text-gray-700 hover:bg-gray-50 py-3 px-4 rounded-lg font-medium transition-colors flex items-center justify-center space-x-2">
-                                            <FileText size={18} />
+                                            <Icon name="fileText" className="text-lg" />
                                             <span>Criar Tarefa</span>
                                         </button>
                                     </div>
@@ -739,7 +851,7 @@ function App() {
                         </div>
                     )}
 
-                    {/* PIPELINE */}
+                    {/* CLIENTES POTENCIAIS */}
                     {activeModule === 'Clientes Potenciais' && (
                         <div className="space-y-6 animate-fadeIn">
                             <div className="flex flex-col lg:flex-row justify-between items-end lg:items-center gap-4">
@@ -751,7 +863,22 @@ function App() {
                                             onChange={e => setClientSearch(e.target.value)} 
                                             className="settings-input pl-10" 
                                         />
-                                        <span className="absolute left-3 top-3.5 text-slate-400">🔍</span>
+                                        <Icon name="search" className="absolute left-3 top-3.5 text-slate-400" />
+                                    </div>
+                                    <div className="flex gap-2 overflow-x-auto pb-1">
+                                        {['TODOS', 'LEAD', 'AGENDADO', 'PROPOSTA', 'FECHADO'].map(status => (
+                                            <button 
+                                                key={status} 
+                                                onClick={() => setClientFilter(status)}
+                                                className={`px-4 py-2 rounded-lg text-[10px] font-black uppercase transition whitespace-nowrap ${
+                                                    clientFilter === status 
+                                                        ? 'bg-blue-600 text-white shadow-md' 
+                                                        : 'bg-white text-slate-500 border border-slate-200'
+                                                }`}
+                                            >
+                                                {status}
+                                            </button>
+                                        ))}
                                     </div>
                                 </div>
                                 <button 
@@ -763,21 +890,25 @@ function App() {
                                         }); 
                                         setShowForm(true); 
                                     }} 
-                                    className="btn-primary px-6 py-3 rounded-xl text-xs uppercase shadow-lg whitespace-nowrap"
+                                    className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-xl text-xs uppercase shadow-lg whitespace-nowrap transition-colors"
                                 >
                                     + Novo Cliente
                                 </button>
                             </div>
+                            
+                            <p className="text-xs font-bold opacity-50 uppercase">
+                                Mostrando {filteredClients.length} de {clients.length} clientes
+                            </p>
                             
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                                 {filteredClients.map(client => (
                                     <div key={client.id} className="glass-panel p-6 relative group hover:border-blue-400 flex flex-col">
                                         <div className="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition z-10">
                                             <button onClick={() => openEdit(client, 'client')} className="p-2 bg-slate-100 rounded-lg text-slate-500 hover:text-blue-600 shadow-sm transition">
-                                                <Edit size={16} />
+                                                <Icon name="edit" className="text-sm" />
                                             </button>
                                             <button onClick={(e) => deleteItem('clients', client.id, e)} className="p-2 bg-slate-100 rounded-lg text-slate-500 hover:text-red-500 shadow-sm transition">
-                                                <Trash2 size={16} />
+                                                <Icon name="trash" className="text-sm" />
                                             </button>
                                         </div>
                                         <div className="flex items-start gap-4 mb-4">
@@ -786,6 +917,7 @@ function App() {
                                             </div>
                                             <div className="overflow-hidden">
                                                 <h4 className="font-black text-base uppercase leading-tight truncate">{client.fullName}</h4>
+                                                <p className="text-[10px] font-bold text-blue-500 uppercase mt-1">{client.interest || 'Interesse não informado'}</p>
                                                 <span className={`inline-block mt-2 text-[9px] font-bold uppercase px-2 py-0.5 rounded-md ${
                                                     client.status === 'FECHADO' ? 'bg-green-100 text-green-700' : 
                                                     client.status === 'PROPOSTA' ? 'bg-purple-100 text-purple-700' : 
@@ -811,6 +943,11 @@ function App() {
                                                 <p className="text-[10px] font-bold truncate">{client.email || '-'}</p>
                                             </div>
                                         </div>
+                                        {client.observations && (
+                                            <div className="mb-4 text-[10px] italic opacity-60 bg-yellow-50 p-2 rounded-lg border border-yellow-100 line-clamp-3">
+                                                "{client.observations}"
+                                            </div>
+                                        )}
                                         <div className="mt-auto pt-2">
                                             <textarea 
                                                 placeholder="Escreva a mensagem aqui..." 
@@ -828,6 +965,45 @@ function App() {
                                         </div>
                                     </div>
                                 ))}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* RELATÓRIOS */}
+                    {activeModule === 'Relatórios' && (
+                        <div className="space-y-8 animate-fadeIn">
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                <div className="glass-panel p-8 border-t-4 border-blue-500">
+                                    <p className="opacity-50 text-xs font-bold uppercase mb-2">Conversão</p>
+                                    <p className="text-4xl font-black">{conversionRate}%</p>
+                                    <p className="text-[10px] opacity-50 mt-2">{salesCount} vendas de {clients.length} leads</p>
+                                </div>
+                                <div className="glass-panel p-8 border-t-4 border-blue-500">
+                                    <p className="opacity-50 text-xs font-bold uppercase mb-2">Ticket Médio (Imóveis)</p>
+                                    <p className="text-3xl font-black">{avgTicket.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 })}</p>
+                                    <p className="text-[10px] opacity-50 mt-2">Baseado em {properties.length} imóveis</p>
+                                </div>
+                                <div className="glass-panel p-8 border-t-4 border-green-500 bg-green-50 border-green-500">
+                                    <p className="opacity-50 text-xs font-bold uppercase mb-2 text-green-800">Comissão Potencial (5%)</p>
+                                    <p className="text-3xl font-black text-green-600">{(totalVGV * 0.05).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 })}</p>
+                                    <p className="text-[10px] opacity-50 mt-2 text-green-700">Se vender toda a carteira</p>
+                                </div>
+                            </div>
+                            
+                            <div className="glass-panel p-6">
+                                <h3 className="text-lg font-black uppercase mb-4">Funil de Vendas</h3>
+                                <div className="h-64">
+                                    <ResponsiveContainer width="100%" height="100%">
+                                        <BarChart data={funnelData} layout="vertical" margin={{top:5, right:30, left:40, bottom:5}}>
+                                            <XAxis type="number" hide />
+                                            <YAxis dataKey="name" type="category" width={100} tick={{fontSize:14, fontWeight:800, fill:'#334155'}} axisLine={false} tickLine={false} />
+                                            <Tooltip cursor={{fill: 'rgba(0,0,0,0.05)'}} />
+                                            <Bar dataKey="value" radius={[0, 4, 4, 0]} barSize={40}>
+                                                {funnelData.map((e, i) => <Cell key={i} fill={e.color} />)}
+                                            </Bar>
+                                        </BarChart>
+                                    </ResponsiveContainer>
+                                </div>
                             </div>
                         </div>
                     )}
