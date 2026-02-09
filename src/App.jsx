@@ -1,9 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  Home, BarChart2, Search, Users, UserCheck, Target, FileText, Calendar, Phone, MapPin, 
-  FolderKanban, File, ChevronLeft, ChevronRight, Bell, Settings, Zap, TrendingUp, 
-  Clock, CheckCircle, Megaphone, Eye, Edit, Trash2, Plus, MessageSquare, Send
-} from 'lucide-react';
 import { db, auth } from './firebase/config';
 import { collection, addDoc, getDocs, query, where, updateDoc, doc, deleteDoc } from 'firebase/firestore';
 import { onAuthStateChanged, signOut, updatePassword } from 'firebase/auth';
@@ -25,31 +20,27 @@ const TailwindStyle = ({ theme }) => (
     body { font-family: 'Inter', sans-serif; background-color: var(--bg-main); color: var(--text-main); transition: background-color 0.5s ease; margin: 0; }
     
     .glass-panel { background: white; border: 1px solid #e2e8f0; border-radius: 1rem; }
-    .btn-primary { background: var(--primary); color: white; font-weight: 700; border-radius: 0.75rem; transition: 0.2s; }
+    .btn-primary { background: var(--primary); color: white; font-weight: 700; border-radius: 0.75rem; transition: 0.2s; cursor: pointer; border: none; }
     .settings-input { width: 100%; padding: 0.75rem 1rem; background-color: #f8fafc; border-radius: 0.75rem; border: 1px solid #cbd5e1; outline: none; }
     .sidebar-active { background-color: #eff6ff; color: #2563eb; border-left: 4px solid #2563eb; }
     
+    .fluxo-input { width: 100%; background: #f8fafc; border: 1px solid #cbd5e1; padding: 8px; border-radius: 6px; text-align: right; font-weight: 600; }
     .custom-checkbox { width: 1.2rem; height: 1.2rem; border-radius: 0.4rem; border: 2px solid #cbd5e1; appearance: none; cursor: pointer; }
     .custom-checkbox:checked { background-color: var(--primary); border-color: var(--primary); background-image: url("data:image/svg+xml,%3csvg viewBox='0 0 16 16' fill='white' xmlns='http://www.w3.org/2000/svg'%3e%3cpath d='M12.207 4.793a1 1 0 010 1.414l-5 5a1 1 0 01-1.414 0l-2.5-2.5a1 1 0 011.414-1.414L6.5 9.086l4.293-4.293a1 1 0 011.414 0z'/%3e%3c/svg%3e"); }
   `}</style>
 );
 
-// --- UTILITÁRIOS ---
 const formatDate = (val) => {
     if(!val) return '-';
     if(val?.seconds) return new Date(val.seconds * 1000).toLocaleDateString('pt-BR');
-    const d = String(val);
-    if(d.includes('T')) return new Date(d).toLocaleDateString('pt-BR');
-    const parts = d.split('-');
-    return parts.length === 3 ? `${parts[2]}/${parts[1]}/${parts[0]}` : d;
+    return String(val).includes('T') ? new Date(val).toLocaleDateString('pt-BR') : val;
 };
-
 const maskPhone = (v) => {
     let r = String(v || '').replace(/\D/g, "");
     if (r.length > 10) return r.replace(/^(\d\d)(\d{5})(\d{4}).*/, "($1) $2-$3");
     return r.replace(/^(\d\d)(\d{4})(\d{0,4}).*/, "($1) $2-$3");
 };
-
+const maskCurrency = (v) => (Number(String(v || '').replace(/\D/g, "")) / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 const parseCurrency = (v) => typeof v === 'number' ? v : (parseFloat(String(v).replace('R$', '').replace(/\./g, '').replace(',', '.').trim()) || 0);
 const formatCurrency = (val) => val.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
@@ -58,7 +49,6 @@ function App() {
     const [loading, setLoading] = useState(true);
     const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
     const [activeModule, setActiveModule] = useState('Página Inicial');
-    
     const [clients, setClients] = useState([]);
     const [properties, setProperties] = useState([]);
     const [agenda, setAgenda] = useState([]);
@@ -66,12 +56,11 @@ function App() {
     const [clientSearch, setClientSearch] = useState('');
     const [propertySearch, setPropertySearch] = useState('');
     const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
-    
     const [showForm, setShowForm] = useState(false);
     const [viewingProperty, setViewingProperty] = useState(null);
     const [saving, setSaving] = useState(false);
-    
-    const [formData, setFormData] = useState({ name: '', phone: '', email: '', type: 'client', date: '', time: '' });
+    const [formData, setFormData] = useState({ name: '', phone: '', email: '', type: 'client', date: '', time: '', price: '', bedrooms: '', imagesStr: '' });
+    const [fluxo, setFluxo] = useState({ ato: 0, mensaisQtd: 36, mensaisVal: 0, interQtd: 5, interVal: 0, chaves: 0 });
     const [wpMessages, setWpMessages] = useState({});
     const [bulkMessage, setBulkMessage] = useState('');
     const [selectedClients, setSelectedClients] = useState([]);
@@ -105,11 +94,28 @@ function App() {
         if (num) window.open(`https://wa.me/55${num}?text=${encodeURIComponent(msg)}`, '_blank');
     };
 
-    const toggleSelectClient = (id) => {
-        setSelectedClients(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+    const handleSave = async () => {
+        setSaving(true);
+        try {
+            const now = new Date().toISOString();
+            if(formData.type === 'client') {
+                await addDoc(collection(db, 'clients'), { fullName: formData.name, phones: [formData.phone], status: 'LEAD', assignedAgent: user.uid, createdAt: now });
+            } else if(formData.type === 'property') {
+                const imgs = formData.imagesStr.split('\n').filter(i => i.trim() !== '');
+                await addDoc(collection(db, 'properties'), { title: formData.name, price: formData.price, userId: user.uid, images: imgs, bedrooms: formData.bedrooms });
+            } else if(formData.type === 'agenda') {
+                await addDoc(collection(db, 'agenda'), { title: formData.name, date: formData.date, time: formData.time, userId: user.uid });
+            }
+            setShowForm(false); loadData(user.uid);
+        } catch (e) { alert(e.message); } finally { setSaving(false); }
     };
 
-    // --- CÁLCULOS ---
+    const openPropertyDetails = (p) => {
+        setViewingProperty(p);
+        const price = parseCurrency(p.price);
+        setFluxo({ ato: price * 0.1, mensaisQtd: 36, mensaisVal: (price * 0.4)/36, interQtd: 3, interVal: (price * 0.2)/3, chaves: price * 0.3 });
+    };
+
     const totalVGV = properties.reduce((acc, c) => acc + parseCurrency(c.price), 0);
     const funnelData = [
         { name: 'Lead', value: clients.filter(c => (c.status || 'LEAD') === 'LEAD').length, color: '#94a3b8' },
@@ -124,102 +130,70 @@ function App() {
     return (
         <div className="flex h-screen bg-gray-50 overflow-hidden">
             <TailwindStyle theme={theme} />
-            
-            {/* Sidebar */}
             <aside className={`bg-white border-r flex flex-col transition-all duration-300 ${isSidebarCollapsed ? 'w-20' : 'w-64'}`}>
                 <div className="p-4 border-b flex items-center justify-between">
                     {!isSidebarCollapsed && <span className="font-bold text-xl tracking-tighter">ALEXANDRE<span className="text-blue-600">CRM</span></span>}
-                    <button onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)} className="p-2 hover:bg-gray-100 rounded-lg">
-                        {isSidebarCollapsed ? <ChevronRight size={20}/> : <ChevronLeft size={20}/>}
+                    <button onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)} className="p-2 border-none bg-transparent cursor-pointer">
+                        {isSidebarCollapsed ? '▶' : '◀'}
                     </button>
                 </div>
                 <nav className="flex-1 p-4 space-y-1">
                     {[
-                        {id:'Página Inicial', icon:Home}, 
-                        {id:'Relatórios', icon:BarChart2}, 
-                        {id:'Clientes Potenciais', icon:UserCheck}, 
-                        {id:'Imóveis', icon:Target}, 
-                        {id:'WhatsApp', icon:MessageSquare},
-                        {id:'Reuniões', icon:Calendar}
+                        {id:'Página Inicial', i:'📊'}, {id:'Relatórios', i:'📈'}, {id:'Clientes Potenciais', i:'👥'}, {id:'Imóveis', i:'🏠'}, {id:'WhatsApp', i:'💬'}, {id:'Reuniões', i:'📅'}
                     ].map(m => (
-                        <button key={m.id} onClick={() => setActiveModule(m.id)} className={`w-full flex items-center gap-3 p-3 rounded-xl transition ${activeModule === m.id ? 'sidebar-active' : 'text-gray-600 hover:bg-gray-50'}`}>
-                            <m.icon size={18} /> {!isSidebarCollapsed && <span className="text-sm font-semibold">{m.id}</span>}
+                        <button key={m.id} onClick={() => setActiveModule(m.id)} className={`w-full flex items-center gap-3 p-3 rounded-xl transition border-none cursor-pointer text-left ${activeModule === m.id ? 'sidebar-active' : 'text-gray-600 bg-transparent hover:bg-gray-50'}`}>
+                            <span className="text-lg">{m.i}</span> {!isSidebarCollapsed && <span className="text-sm font-semibold">{m.id}</span>}
                         </button>
                     ))}
                 </nav>
             </aside>
 
-            {/* Main Content */}
             <main className="flex-1 overflow-y-auto p-8">
                 <header className="flex justify-between items-center mb-8">
                     <h1 className="text-3xl font-bold text-gray-900">{activeModule}</h1>
                     <div className="flex items-center gap-3">
                         <div className="text-right"><p className="text-xs font-bold uppercase">{userProfile.name}</p><p className="text-[10px] text-blue-600 font-bold">CRECI {userProfile.creci}</p></div>
-                        {userProfile.photo && <img src={userProfile.photo} className="w-10 h-10 rounded-full border" />}
+                        {userProfile.photo && <img src={userProfile.photo} className="w-10 h-10 rounded-full border" alt="perfil" />}
                     </div>
                 </header>
 
-                {/* --- PÁGINA INICIAL --- */}
                 {activeModule === 'Página Inicial' && (
                     <div className="space-y-6 animate-fadeIn">
                         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
                             <div className="glass-panel p-6 border-l-4 border-blue-500"><p className="text-xs font-bold text-gray-400 uppercase">Leads Ativos</p><p className="text-3xl font-black">{clients.length}</p></div>
                             <div className="glass-panel p-6 border-l-4 border-green-500"><p className="text-xs font-bold text-gray-400 uppercase">VGV Carteira</p><p className="text-2xl font-black">{formatCurrency(totalVGV)}</p></div>
                         </div>
-                        <div className="glass-panel p-8">
-                            <h3 className="font-bold mb-6 opacity-50 uppercase text-xs">Desempenho do Funil</h3>
-                            <div className="h-80">
-                                <ResponsiveContainer width="100%" height="100%">
-                                    <BarChart data={funnelData}>
-                                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                                        <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fontSize:12, fontWeight:700}} />
-                                        <YAxis axisLine={false} tickLine={false} />
-                                        <Tooltip cursor={{fill: '#f8fafc'}} />
-                                        <Bar dataKey="value" radius={[4, 4, 0, 0]} barSize={50}>
-                                            {funnelData.map((e, i) => <Cell key={i} fill={e.color} />)}
-                                        </Bar>
-                                    </BarChart>
-                                </ResponsiveContainer>
-                            </div>
+                        <div className="glass-panel p-8 h-96">
+                            <ResponsiveContainer width="100%" height="100%">
+                                <BarChart data={funnelData} layout="vertical">
+                                    <XAxis type="number" hide /><YAxis dataKey="name" type="category" width={80} tick={{fontSize:12, fontWeight:800}} axisLine={false} />
+                                    <Tooltip /><Bar dataKey="value" radius={[0, 4, 4, 0]} barSize={35}>{funnelData.map((e, i) => <Cell key={i} fill={e.color} />)}</Bar>
+                                </BarChart>
+                            </ResponsiveContainer>
                         </div>
                     </div>
                 )}
 
-                {/* --- RELATÓRIOS --- */}
                 {activeModule === 'Relatórios' && (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8 animate-fadeIn">
                         <div className="glass-panel p-8">
-                            <h3 className="font-bold text-xs uppercase opacity-50 mb-6">Composição de Carteira</h3>
-                            <div className="h-64">
-                                <ResponsiveContainer>
-                                    <PieChart>
-                                        <Pie data={funnelData} dataKey="value" nameKey="name" innerRadius={60} outerRadius={80} paddingAngle={5}>
-                                            {funnelData.map((e, i) => <Cell key={i} fill={e.color} />)}
-                                        </Pie>
-                                        <Tooltip />
-                                        <Legend />
-                                    </PieChart>
-                                </ResponsiveContainer>
-                            </div>
+                            <h3 className="font-bold text-xs uppercase opacity-50 mb-6">Distribuição</h3>
+                            <div className="h-64"><ResponsiveContainer><PieChart><Pie data={funnelData} dataKey="value" innerRadius={60} outerRadius={80} paddingAngle={5}>{funnelData.map((e, i) => <Cell key={i} fill={e.color} />)}</Pie><Tooltip/><Legend/></PieChart></ResponsiveContainer></div>
                         </div>
                         <div className="glass-panel p-8">
-                            <h3 className="font-bold text-xs uppercase opacity-50 mb-6">Métricas de Venda</h3>
-                            <div className="space-y-6">
-                                <div className="flex justify-between items-end border-b pb-4"><div><p className="text-xs font-bold text-gray-400 uppercase">Ticket Médio</p><p className="text-2xl font-black">{formatCurrency(totalVGV / (properties.length || 1))}</p></div><TrendingUp className="text-green-500" /></div>
-                                <div className="flex justify-between items-end border-b pb-4"><div><p className="text-xs font-bold text-gray-400 uppercase">Conversão</p><p className="text-2xl font-black">{(clients.filter(c => c.status === 'FECHADO').length / (clients.length || 1) * 100).toFixed(1)}%</p></div><Target className="text-blue-500" /></div>
-                            </div>
+                            <h3 className="font-bold text-xs uppercase opacity-50 mb-6">Resumo</h3>
+                            <p className="text-2xl font-black">{formatCurrency(totalVGV)} em carteira</p>
                         </div>
                     </div>
                 )}
 
-                {/* --- CLIENTES POTENCIAIS (RESTAURADO) --- */}
                 {activeModule === 'Clientes Potenciais' && (
                     <div className="space-y-6 animate-fadeIn">
                         <div className="flex justify-between items-center gap-4">
-                            <div className="relative flex-1"><Search className="absolute left-3 top-3.5 text-gray-400" size={18}/><input placeholder="Buscar por nome ou telefone..." value={clientSearch} onChange={e => setClientSearch(e.target.value)} className="settings-input pl-10" /></div>
-                            <button onClick={() => setShowForm(true)} className="btn-primary px-6 py-3 shadow-lg">+ Novo Cliente</button>
+                            <input placeholder="🔍 Buscar por nome..." value={clientSearch} onChange={e => setClientSearch(e.target.value)} className="settings-input" />
+                            <button onClick={() => { setFormData({name:'', phone:'', type:'client'}); setShowForm(true); }} className="btn-primary px-6 py-3 shadow-lg">+ Novo Cliente</button>
                         </div>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                             {clients.filter(c => c.fullName.toLowerCase().includes(clientSearch.toLowerCase())).map(client => (
                                 <div key={client.id} className="glass-panel p-6 group relative">
                                     <div className="flex items-start gap-4 mb-4">
@@ -229,25 +203,49 @@ function App() {
                                     <div className="bg-slate-50 rounded-xl p-3 space-y-2 mb-4 text-[10px] font-bold text-gray-600">
                                         <p>📞 {maskPhone(client.phones?.[0])}</p><p>📧 {client.email || '-'}</p>
                                     </div>
-                                    <textarea placeholder="Mensagem rápida..." className="w-full text-xs p-2 border rounded-lg mb-2 h-16 outline-none focus:border-green-400" value={wpMessages[client.id] || ''} onChange={(e) => setWpMessages({...wpMessages, [client.id]: e.target.value})} />
-                                    <button onClick={() => sendWp(client.phones?.[0], wpMessages[client.id] || 'Olá!')} className="w-full py-3 bg-green-500 text-white rounded-xl font-black uppercase text-xs shadow-lg">WhatsApp ➜</button>
+                                    <textarea placeholder="Mensagem rápida..." className="w-full text-xs p-2 border rounded-lg mb-2 h-16 outline-none" value={wpMessages[client.id] || ''} onChange={(e) => setWpMessages({...wpMessages, [client.id]: e.target.value})} />
+                                    <button onClick={() => sendWp(client.phones?.[0], wpMessages[client.id] || 'Olá!')} className="w-full py-3 bg-green-500 text-white rounded-xl font-black uppercase text-xs shadow-lg cursor-pointer border-none">WhatsApp ➜</button>
                                 </div>
                             ))}
                         </div>
                     </div>
                 )}
 
-                {/* --- IMÓVEIS (RESTAURADO) --- */}
+                {activeModule === 'WhatsApp' && (
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 animate-fadeIn h-[calc(100vh-200px)]">
+                        <div className="glass-panel p-6 flex flex-col">
+                            <h3 className="font-bold text-sm uppercase mb-4">Selecionar</h3>
+                            <div className="flex-1 overflow-y-auto space-y-2">
+                                {clients.map(c => (
+                                    <div key={c.id} onClick={() => setSelectedClients(prev => prev.includes(c.id) ? prev.filter(x => x !== c.id) : [...prev, c.id])} className={`p-3 rounded-xl border flex items-center justify-between cursor-pointer transition ${selectedClients.includes(c.id) ? 'bg-blue-50 border-blue-400' : 'bg-white'}`}>
+                                        <p className="text-xs font-bold uppercase">{c.fullName}</p><input type="checkbox" checked={selectedClients.includes(c.id)} readOnly className="custom-checkbox" />
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                        <div className="lg:col-span-2 flex flex-col gap-6">
+                            <div className="glass-panel p-6">
+                                <h3 className="font-bold text-sm uppercase mb-4">Mensagem em Massa</h3>
+                                <textarea value={bulkMessage} onChange={e => setBulkMessage(e.target.value)} className="w-full h-32 p-4 bg-gray-50 rounded-xl border-none outline-none font-medium text-sm" placeholder="Escreva aqui..." />
+                            </div>
+                            <div className="glass-panel p-8 bg-slate-900 text-white flex flex-col items-center justify-center">
+                                <p className="text-xs font-bold opacity-50 uppercase mb-4">{selectedClients.length} contatos selecionados</p>
+                                <button onClick={() => selectedClients.forEach(id => sendWp(clients.find(c => c.id === id).phones?.[0], bulkMessage))} className="px-12 py-4 bg-green-500 text-white rounded-xl font-black uppercase text-xs border-none cursor-pointer">🚀 Disparar WhatsApp</button>
+                            </div>
+                        </div>
+                    </div>
+                )}
+                
                 {activeModule === 'Imóveis' && (
                     <div className="space-y-6 animate-fadeIn">
                         <div className="flex justify-between items-center">
-                            <input placeholder="Buscar imóveis..." value={propertySearch} onChange={e => setPropertySearch(e.target.value)} className="settings-input w-72" />
-                            <button onClick={() => setShowForm(true)} className="btn-primary px-6 py-3 shadow-lg">+ Novo Imóvel</button>
+                            <input placeholder="🏠 Buscar imóveis..." value={propertySearch} onChange={e => setPropertySearch(e.target.value)} className="settings-input w-72" />
+                            <button onClick={() => { setFormData({name:'', price:'', type:'property'}); setShowForm(true); }} className="btn-primary px-6 py-3 shadow-lg">+ Novo Imóvel</button>
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
                             {properties.filter(p => p.title.toLowerCase().includes(propertySearch.toLowerCase())).map(p => (
-                                <div key={p.id} className="glass-panel overflow-hidden cursor-pointer hover:shadow-xl transition" onClick={() => openPropertyDetails(p)}>
-                                    <div className="h-48 bg-gray-200">{p.images?.[0] ? <img src={p.images[0]} className="w-full h-full object-cover" /> : <div className="h-full flex items-center justify-center opacity-20 text-4xl">🏠</div>}</div>
+                                <div key={p.id} className="glass-panel overflow-hidden cursor-pointer" onClick={() => openPropertyDetails(p)}>
+                                    <div className="h-48 bg-gray-200">{p.images?.[0] ? <img src={p.images[0]} className="w-full h-full object-cover" alt="imovel" /> : <div className="h-full flex items-center justify-center opacity-20 text-4xl">🏠</div>}</div>
                                     <div className="p-5"><h4 className="font-black uppercase text-sm truncate">{p.title}</h4><p className="text-xl font-black text-blue-600 mt-1">{p.price}</p></div>
                                 </div>
                             ))}
@@ -255,74 +253,44 @@ function App() {
                     </div>
                 )}
 
-                {/* --- WHATSAPP (SEÇÃO SOLICITADA) --- */}
-                {activeModule === 'WhatsApp' && (
-                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 animate-fadeIn h-[calc(100vh-200px)]">
-                        <div className="glass-panel p-6 flex flex-col">
-                            <h3 className="font-bold text-sm uppercase mb-4">Selecionar Clientes</h3>
-                            <div className="flex-1 overflow-y-auto space-y-2 pr-2">
-                                {clients.map(c => (
-                                    <div key={c.id} onClick={() => toggleSelectClient(c.id)} className={`p-3 rounded-xl border flex items-center justify-between cursor-pointer transition ${selectedClients.includes(c.id) ? 'bg-blue-50 border-blue-400' : 'bg-white hover:bg-gray-50'}`}>
-                                        <div className="flex items-center gap-3"><div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-[10px] font-bold uppercase">{c.fullName.charAt(0)}</div><p className="text-xs font-bold uppercase">{c.fullName}</p></div>
-                                        <input type="checkbox" checked={selectedClients.includes(c.id)} readOnly className="custom-checkbox" />
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                        <div className="lg:col-span-2 flex flex-col gap-6">
-                            <div className="glass-panel p-6">
-                                <h3 className="font-bold text-sm uppercase mb-4">Mensagem e Templates</h3>
-                                <div className="flex gap-2 mb-4 overflow-x-auto pb-2">
-                                    {[{l:'Apresentação', t:'Olá! Sou o Alexandre, corretor de imóveis. Gostaria de te mostrar algumas oportunidades.'}, {l:'Lembrete Visita', t:'Olá! Passando para confirmar nossa visita agendada.'}].map((t,i) => (
-                                        <button key={i} onClick={() => setBulkMessage(t.t)} className="px-3 py-1 bg-gray-100 text-[10px] font-bold uppercase rounded-full border hover:bg-gray-200">{t.l}</button>
-                                    ))}
-                                </div>
-                                <textarea value={bulkMessage} onChange={e => setBulkMessage(e.target.value)} className="w-full h-32 p-4 bg-gray-50 rounded-xl border-none outline-none focus:ring-2 focus:ring-blue-500 font-medium text-sm" placeholder="Escreva sua mensagem aqui..." />
-                            </div>
-                            <div className="glass-panel p-8 bg-slate-900 text-white flex flex-col items-center justify-center relative overflow-hidden">
-                                <div className="absolute top-0 right-0 w-32 h-32 bg-green-500 rounded-full blur-3xl opacity-20"></div>
-                                <h3 className="text-xl font-black uppercase mb-2 relative z-10">Central de Disparo</h3>
-                                <p className="text-xs font-bold opacity-50 uppercase mb-8 relative z-10">{selectedClients.length} contatos na fila</p>
-                                <button 
-                                    onClick={() => selectedClients.forEach(id => sendWp(clients.find(c => c.id === id).phones?.[0], bulkMessage))} 
-                                    className="px-12 py-4 bg-green-500 hover:bg-green-600 text-white rounded-xl font-black uppercase text-xs shadow-2xl transition-all flex items-center gap-2 relative z-10"
-                                >
-                                    <Send size={16} /> Disparar no WhatsApp
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                )}
-
-                {/* --- REUNIÕES --- */}
                 {activeModule === 'Reuniões' && (
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-10 animate-fadeIn">
                         <div className="lg:col-span-2 glass-panel p-8">
-                            <h3 className="text-xl font-black uppercase italic mb-8">Calendário</h3>
                             <div className="grid grid-cols-7 gap-2">
                                 {Array.from({length: 31}, (_, i) => i + 1).map(d => (
-                                    <div key={d} onClick={() => setSelectedDate(`2026-02-${String(d).padStart(2,'0')}`)} className={`aspect-square flex items-center justify-center rounded-xl font-bold cursor-pointer transition ${selectedDate.endsWith(String(d).padStart(2,'0')) ? 'bg-blue-600 text-white shadow-lg' : 'hover:bg-slate-100'}`}>{d}</div>
+                                    <div key={d} onClick={() => setSelectedDate(`2026-02-${String(d).padStart(2,'0')}`)} className={`aspect-square flex items-center justify-center rounded-xl font-bold cursor-pointer ${selectedDate.endsWith(String(d).padStart(2,'0')) ? 'bg-blue-600 text-white' : 'hover:bg-slate-100'}`}>{d}</div>
                                 ))}
                             </div>
                         </div>
-                        <div className="glass-panel p-8 bg-white h-fit">
-                            <h3 className="font-black uppercase text-xs opacity-50 mb-6">Agenda: {formatDate(selectedDate)}</h3>
-                            <div className="space-y-4">
-                                {agenda.filter(a => a.date === selectedDate).length > 0 ? (
-                                    agenda.filter(a => a.date === selectedDate).map(a => (
-                                        <div key={a.id} className="p-4 border-l-4 border-blue-500 bg-blue-50 rounded-r-xl">
-                                            <p className="text-xs font-bold text-blue-600">{a.time}</p><p className="font-black uppercase text-sm">{a.title}</p>
-                                        </div>
-                                    ))
-                                ) : (
-                                    <p className="text-gray-400 text-xs italic">Nenhum evento para este dia.</p>
-                                )}
-                            </div>
-                            <button onClick={() => setShowForm(true)} className="w-full mt-6 py-4 bg-gray-100 rounded-xl font-bold text-xs uppercase hover:bg-gray-200">Novo Agendamento</button>
+                        <div className="glass-panel p-8">
+                            <h3 className="font-black uppercase text-xs opacity-50 mb-6">Agenda de {formatDate(selectedDate)}</h3>
+                            {agenda.filter(a => a.date === selectedDate).map(a => (
+                                <div key={a.id} className="p-4 border-l-4 border-blue-500 bg-blue-50 rounded-r-xl mb-2">
+                                    <p className="text-xs font-bold text-blue-600">{a.time}</p><p className="font-black uppercase text-sm">{a.title}</p>
+                                </div>
+                            ))}
+                            <button onClick={() => { setFormData({...formData, type:'agenda', date:selectedDate}); setShowForm(true); }} className="w-full mt-6 py-4 bg-gray-100 rounded-xl font-bold text-xs uppercase border-none cursor-pointer">Novo Agendamento</button>
                         </div>
                     </div>
                 )}
             </main>
+
+            {showForm && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+                    <div className="glass-panel bg-white w-full max-w-lg p-8">
+                        <h3 className="text-xl font-bold mb-6">Novo Registro</h3>
+                        <div className="space-y-4">
+                            <input className="settings-input" placeholder="Nome" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} />
+                            {formData.type === 'client' && <input className="settings-input" placeholder="Telefone" value={formData.phone} onChange={e => setFormData({...formData, phone: maskPhone(e.target.value)})} />}
+                            {formData.type === 'agenda' && <div className="grid grid-cols-2 gap-2"><input type="date" className="settings-input" value={formData.date} onChange={e => setFormData({...formData, date: e.target.value})} /><input type="time" className="settings-input" value={formData.time} onChange={e => setFormData({...formData, time: e.target.value})} /></div>}
+                        </div>
+                        <div className="flex gap-4 mt-8">
+                            <button onClick={handleSave} className="btn-primary flex-1 py-4 uppercase">Salvar</button>
+                            <button onClick={() => setShowForm(false)} className="flex-1 bg-gray-100 py-4 rounded-xl font-bold border-none cursor-pointer">Cancelar</button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
