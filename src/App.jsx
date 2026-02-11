@@ -59,7 +59,7 @@ const TailwindStyle = ({ theme }) => (
     .sidebar-link.active { background-color: var(--primary); color: white; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.2); }
     .sidebar-link:hover:not(.active) { background-color: rgba(0,0,0,0.05); color: var(--text-main); }
 
-    /* BOTÕES */
+    /* BOTÕES GERAIS */
     .btn-primary { background: var(--primary); color: white; border: none; font-weight: 800; transition: 0.2s; }
     .btn-primary:hover { background: var(--secondary); transform: scale(1.02); }
     
@@ -67,13 +67,29 @@ const TailwindStyle = ({ theme }) => (
     .btn-back { background: rgba(0,0,0,0.1); color: var(--text-main); font-weight: 800; }
     .btn-reopen { background: #334155; color: #ffffff !important; }
 
+    /* BOTÕES ESTILO HUBSPOT */
+    .btn-crm-solid { background-color: var(--primary); color: white; border-radius: 0.25rem; font-weight: 600; padding: 0.5rem 1rem; transition: all 0.2s; }
+    .btn-crm-solid:hover { background-color: var(--secondary); transform: translateY(-1px); }
+    
+    .btn-crm-outline { background-color: white; border: 1px solid var(--primary); color: var(--primary); border-radius: 0.25rem; font-weight: 600; padding: 0.5rem 1rem; transition: all 0.2s; }
+    .btn-crm-outline:hover { background-color: var(--bg-main); }
+
+    .btn-crm-ghost { background-color: white; border: 1px solid #cbd5e1; color: #64748b; border-radius: 0.25rem; font-weight: 600; padding: 0.5rem 1rem; transition: all 0.2s; display: flex; items-center; gap: 0.5rem; }
+    .btn-crm-ghost:hover { border-color: #94a3b8; color: #475569; }
+
     /* INPUTS */
     .settings-input { width: 100%; padding: 0.75rem 1rem; background-color: rgba(0,0,0,0.03); border-radius: 0.75rem; border: 1px solid transparent; font-weight: 600; outline: none; transition: 0.2s; color: var(--text-main); }
     .settings-input:focus { background-color: ${theme.name.includes('Dark') ? '#334155' : '#ffffff'}; border-color: var(--primary); box-shadow: 0 0 0 4px rgba(0,0,0,0.1); }
     
-    /* CARDS */
+    /* CARDS & TABLES */
     .kanban-card { background: ${theme.name.includes('Dark') ? '#1e293b' : 'white'}; border: 1px solid rgba(0,0,0,0.1); border-radius: 1rem; padding: 1.25rem; cursor: pointer; position: relative; margin-bottom: 0.75rem; color: var(--text-main); }
     .kanban-card:hover { border-color: var(--primary); transform: translateY(-3px); }
+
+    .crm-table { width: 100%; border-collapse: separate; border-spacing: 0; }
+    .crm-table th { text-align: left; padding: 1rem; font-size: 0.7rem; font-weight: 800; text-transform: uppercase; color: #94a3b8; border-bottom: 1px solid #e2e8f0; }
+    .crm-table td { padding: 1rem; border-bottom: 1px solid #f1f5f9; font-size: 0.85rem; font-weight: 500; }
+    .crm-table tr:hover td { background-color: rgba(0,0,0,0.02); }
+    .crm-table tr:last-child td { border-bottom: none; }
 
     /* UTIL */
     .text-primary { color: var(--primary); }
@@ -87,7 +103,7 @@ const TailwindStyle = ({ theme }) => (
     .prop-image img { width: 100%; height: 100%; object-fit: cover; border-radius: 1rem; }
     
     /* Checkbox Customizada */
-    .custom-checkbox { width: 1.2rem; height: 1.2rem; border-radius: 0.4rem; border: 2px solid #cbd5e1; appearance: none; cursor: pointer; transition: 0.2s; }
+    .custom-checkbox { width: 1.1rem; height: 1.1rem; border-radius: 0.25rem; border: 2px solid #cbd5e1; appearance: none; cursor: pointer; transition: 0.2s; position: relative; }
     .custom-checkbox:checked { background-color: var(--primary); border-color: var(--primary); background-image: url("data:image/svg+xml,%3csvg viewBox='0 0 16 16' fill='white' xmlns='http://www.w3.org/2000/svg'%3e%3cpath d='M12.207 4.793a1 1 0 010 1.414l-5 5a1 1 0 01-1.414 0l-2.5-2.5a1 1 0 011.414-1.414L6.5 9.086l4.293-4.293a1 1 0 011.414 0z'/%3e%3c/svg%3e"); }
 
     /* AGENDA ESPECÍFICA */
@@ -129,11 +145,20 @@ function App() {
         salesStart: '', constructionStart: '', deliveryDate: '', constructionStatus: 'Planta'
     });
     
-    // MENSAGENS WHATSAPP
+    // MENSAGENS WHATSAPP & FILA DE DISPARO
     const [wpMessages, setWpMessages] = useState({});
     const [bulkMessage, setBulkMessage] = useState('');
     const [selectedClients, setSelectedClients] = useState([]);
     const [searchTerm, setSearchTerm] = useState('');
+    const [sendingQueue, setSendingQueue] = useState([]); // Fila de envio
+    const [currentQueueIndex, setCurrentQueueIndex] = useState(0); // Índice atual da fila
+    
+    // MODO DE TESTE (NOVO)
+    const [isTestMode, setIsTestMode] = useState(false);
+    const [testNumber, setTestNumber] = useState('21972653971'); // Número padrão solicitado
+
+    // REF PARA IMPORTAÇÃO
+    const importInput = useRef(null);
 
     // PERFIL & SEGURANÇA
     const [userProfile, setUserProfile] = useState({ name: 'Alexandre', creci: '', phone: '', address: '', bio: '' });
@@ -213,6 +238,47 @@ function App() {
         }
     };
 
+    const handleBulkDelete = async () => {
+        if(selectedClients.length === 0) return alert("Selecione clientes para excluir em massa.");
+        if(window.confirm(`Tem certeza que deseja excluir ${selectedClients.length} clientes? Essa ação não pode ser desfeita.`)) {
+            for(let id of selectedClients) {
+                await deleteDoc(doc(db, 'clients', id));
+            }
+            setSelectedClients([]);
+            loadData(user.uid);
+        }
+    };
+
+    const handleImportCSV = (e) => {
+        const file = e.target.files[0];
+        if(!file) return;
+        
+        const reader = new FileReader();
+        reader.onload = async (event) => {
+            const text = event.target.result;
+            const rows = text.split('\n');
+            let count = 0;
+            for(let row of rows) {
+                const cols = row.split(',');
+                if(cols.length >= 1 && cols[0].trim() !== '') {
+                    // Esperado: Nome, Email, Telefone
+                    await addDoc(collection(db, 'clients'), {
+                        fullName: cols[0]?.trim() || 'Importado',
+                        email: cols[1]?.trim() || '',
+                        phones: [cols[2]?.trim() || ''],
+                        status: 'LEAD',
+                        assignedAgent: user.uid,
+                        createdAt: new Date().toISOString()
+                    });
+                    count++;
+                }
+            }
+            alert(`${count} clientes importados com sucesso!`);
+            loadData(user.uid);
+        };
+        reader.readAsText(file);
+    };
+
     const openEdit = (item, type) => {
         setEditingId(item.id);
         if (type === 'client') {
@@ -241,10 +307,71 @@ function App() {
         else setSelectedClients([...selectedClients, id]);
     };
 
+    // FUNÇÃO DE ENVIO CORRIGIDA PARA ZAPZAP/LINUX/WEB
     const sendWp = (phone, msg) => {
-        const num = phone?.replace(/\D/g, '');
-        if (num) window.open(`https://wa.me/55${num}?text=${encodeURIComponent(msg)}`, '_blank');
-        else alert("Cliente sem telefone.");
+        if (!phone) {
+            alert("Sem telefone definido.");
+            return;
+        }
+        
+        // 1. Limpeza brutal: mantém apenas números
+        let num = phone.replace(/\D/g, '');
+        
+        // 2. Lógica inteligente de código de país (55)
+        // Números brasileiros tem 10 (fixo) ou 11 (celular) dígitos SEM o 55
+        // Se tiver 10 ou 11, adicionamos o 55. 
+        // Se tiver 12 ou 13, assumimos que já tem o 55.
+        if (num.length >= 10 && num.length <= 11) {
+            num = `55${num}`;
+        }
+        
+        // 3. Link Direto WEB (Resolve o problema do ZapZap não pegar o texto)
+        // Usar 'web.whatsapp.com' força o navegador/wrapper a abrir a interface correta
+        const url = `https://web.whatsapp.com/send?phone=${num}&text=${encodeURIComponent(msg)}`;
+        
+        window.open(url, '_blank');
+    };
+
+    // LÓGICA DA FILA DE DISPARO
+    const handlePrepareQueue = () => {
+        if (selectedClients.length === 0) return alert("Selecione pelo menos um cliente.");
+        if (!bulkMessage.trim()) return alert("Digite uma mensagem.");
+        
+        const queue = selectedClients.map(id => {
+            const client = clients.find(c => c.id === id);
+            return {
+                id: client.id,
+                name: client.fullName,
+                phone: client.phones?.[0] || '',
+                status: 'pending' // pending, sent
+            };
+        });
+        
+        setSendingQueue(queue);
+        setCurrentQueueIndex(0);
+    };
+
+    const handleSendNext = () => {
+        if (currentQueueIndex >= sendingQueue.length) return;
+        
+        const item = sendingQueue[currentQueueIndex];
+        
+        // SE MODO TESTE ESTIVER ATIVO, USA O NÚMERO DE TESTE (Limpo também)
+        const targetPhone = isTestMode ? testNumber : item.phone;
+        
+        sendWp(targetPhone, bulkMessage);
+        
+        // Atualiza status na fila visualmente
+        const newQueue = [...sendingQueue];
+        newQueue[currentQueueIndex].status = 'sent';
+        setSendingQueue(newQueue);
+        
+        // Avança índice
+        if (currentQueueIndex < sendingQueue.length - 1) {
+            setCurrentQueueIndex(currentQueueIndex + 1);
+        } else {
+            alert("Fila finalizada com sucesso!");
+        }
     };
 
     // CALENDARIO LOGIC
@@ -260,7 +387,6 @@ function App() {
         return days;
     };
 
-    // HELPER PARA POSIÇÃO DA LINHA DO TEMPO
     const getTopPosition = (dateObj) => {
         const hours = dateObj.getHours();
         const minutes = dateObj.getMinutes();
@@ -290,7 +416,7 @@ function App() {
                     {[
                         { id: 'dashboard', icon: '📊', label: 'Dashboard' },
                         { id: 'pipeline', icon: '🌪️', label: 'Funil Vendas' },
-                        { id: 'clients', icon: '👥', label: 'Clientes' },
+                        { id: 'clientes', icon: '👥', label: 'Clientes' },
                         { id: 'properties', icon: '🏠', label: 'Imóveis' },
                         { id: 'agenda', icon: '📅', label: 'Agenda' },
                         { id: 'whatsapp', icon: '💬', label: 'WhatsApp' },
@@ -311,7 +437,7 @@ function App() {
                 <header className="flex justify-between items-center mb-6 animate-fadeIn flex-shrink-0">
                     <div>
                         <h2 className="text-xs font-black opacity-50 uppercase tracking-widest mb-1">Painel de Controle</h2>
-                        <h1 className="text-3xl font-black tracking-tight uppercase">{activeTab === 'settings' ? 'Configurações' : activeTab === 'properties' ? 'Estoque de Imóveis' : activeTab}</h1>
+                        <h1 className="text-3xl font-black tracking-tight uppercase">{activeTab === 'settings' ? 'Configurações' : activeTab === 'properties' ? 'Estoque de Imóveis' : activeTab === 'clientes' ? 'Gestão de Contatos' : activeTab}</h1>
                     </div>
                     <div className="hidden sm:block text-right">
                         <div className="flex items-center gap-2 justify-end"><div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div><span className="font-bold text-xs text-green-600">SISTEMA ONLINE</span></div>
@@ -353,66 +479,94 @@ function App() {
                     </div>
                 )}
                 
-                {/* --- CLIENTES --- */}
-                {activeTab === 'clients' && (
-                    <div className="space-y-6 animate-fadeIn overflow-y-auto pb-10">
-                       <div className="flex justify-end">
-                           <button onClick={() => { setEditingId(null); setFormData({ name: '', phone: '', email: '', birthDate: '', address: '', interest: '', obs: '', type: 'client' }); setShowForm(true); }} className="btn-primary px-6 py-3 rounded-xl text-xs uppercase shadow-lg">+ Novo Cliente</button>
+                {/* --- CLIENTES (ESTILO TABELA HUBSPOT - ATUALIZADO E FUNCIONAL) --- */}
+                {activeTab === 'clientes' && (
+                    <div className="space-y-6 animate-fadeIn h-full flex flex-col">
+                       {/* Input Arquivo Oculto */}
+                       <input type="file" ref={importInput} onChange={handleImportCSV} className="hidden" accept=".csv" />
+
+                       {/* Top Bar com Pesquisa e Botões */}
+                       <div className="flex flex-col md:flex-row justify-between items-center gap-4 mb-2">
+                           <div className="relative w-full md:w-1/3">
+                               <input 
+                                    placeholder="Pesquisar..." 
+                                    value={searchTerm} 
+                                    onChange={e => setSearchTerm(e.target.value)} 
+                                    className="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg text-sm focus:border-blue-500 outline-none"
+                               />
+                               <span className="absolute left-3 top-2.5 text-slate-400 text-xs">🔍</span>
+                           </div>
+                           <div className="flex gap-3">
+                               <button onClick={handleBulkDelete} className="btn-crm-ghost text-xs">
+                                   Ações (Excluir Selecionados) {selectedClients.length > 0 && `(${selectedClients.length})`}
+                               </button>
+                               <button onClick={() => importInput.current.click()} className="btn-crm-outline text-xs">
+                                   Importar CSV
+                               </button>
+                               <button onClick={() => { setEditingId(null); setFormData({ name: '', phone: '', email: '', birthDate: '', address: '', interest: '', obs: '', type: 'client' }); setShowForm(true); }} className="btn-crm-solid text-xs">
+                                   Criar contato
+                               </button>
+                           </div>
                        </div>
                        
-                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                           {clients.map(client => (
-                               <div key={client.id} className="glass-panel p-6 relative group hover:border-blue-400 flex flex-col">
-                                   <div className="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition z-10">
-                                       <button onClick={() => openEdit(client, 'client')} className="p-2 bg-slate-100 rounded-lg text-slate-500 hover:text-blue-600 shadow-sm transition">✎</button>
-                                       <button onClick={(e) => deleteItem('clients', client.id, e)} className="p-2 bg-slate-100 rounded-lg text-slate-500 hover:text-red-500 shadow-sm transition">✕</button>
-                                   </div>
-
-                                   <div className="flex items-start gap-4 mb-4">
-                                       <div className="w-12 h-12 rounded-full bg-slate-100 border border-white shadow-inner flex items-center justify-center text-lg font-black text-slate-400 flex-shrink-0">
-                                           {client.fullName.charAt(0)}
-                                       </div>
-                                       <div className="overflow-hidden">
-                                           <h4 className="font-black text-base uppercase leading-tight truncate">{client.fullName}</h4>
-                                           <p className="text-[10px] font-bold text-blue-500 uppercase mt-1">{client.interest || 'Interesse não informado'}</p>
-                                           <span className={`inline-block mt-2 text-[9px] font-bold uppercase px-2 py-0.5 rounded-md ${client.status === 'FECHADO' ? 'bg-green-100 text-green-700' : client.status === 'PROPOSTA' ? 'bg-purple-100 text-purple-700' : 'bg-slate-100 text-slate-500'}`}>
-                                               {client.status || 'LEAD'}
-                                           </span>
-                                       </div>
-                                   </div>
-
-                                   <div className="bg-slate-50/50 rounded-xl p-3 space-y-2 mb-4 border border-slate-100">
-                                       <div className="grid grid-cols-2 gap-2">
-                                           <div><p className="text-[9px] font-bold uppercase opacity-50">Telefone</p><p className="text-[10px] font-bold truncate">{client.phones?.[0] || '-'}</p></div>
-                                           <div><p className="text-[9px] font-bold uppercase opacity-50">Nascimento</p><p className="text-[10px] font-bold truncate">{client.birthDate || '-'}</p></div>
-                                       </div>
-                                       <div><p className="text-[9px] font-bold uppercase opacity-50">Email</p><p className="text-[10px] font-bold truncate">{client.email || '-'}</p></div>
-                                       <div><p className="text-[9px] font-bold uppercase opacity-50">Endereço</p><p className="text-[10px] font-bold truncate">{client.address || '-'}</p></div>
-                                       
-                                       <div className="pt-2 mt-2 border-t border-dashed border-slate-200 grid grid-cols-2 gap-2">
-                                            <div><p className="text-[9px] font-bold uppercase opacity-50">Início Contato</p><p className="text-[9px] font-mono opacity-70">{client.createdAt ? new Date(client.createdAt).toLocaleDateString('pt-BR') : '-'}</p></div>
-                                            <div><p className="text-[9px] font-bold uppercase opacity-50">Última Mudança</p><p className="text-[9px] font-mono opacity-70">{client.updatedAt ? new Date(client.updatedAt).toLocaleDateString('pt-BR') : '-'}</p></div>
-                                       </div>
-                                   </div>
-
-                                   {client.observations && (
-                                       <div className="mb-4 text-[10px] italic opacity-60 bg-yellow-50 p-2 rounded-lg border border-yellow-100 line-clamp-3">"{client.observations}"</div>
-                                   )}
-
-                                   <div className="mt-auto pt-2">
-                                       <textarea 
-                                            placeholder="Escreva a mensagem aqui..." 
-                                            className="w-full text-xs p-2 bg-white border border-slate-200 rounded-lg mb-2 h-16 outline-none focus:border-green-400 transition resize-none"
-                                            value={wpMessages[client.id] || ''}
-                                            onChange={(e) => setWpMessages({...wpMessages, [client.id]: e.target.value})}
-                                            onClick={(e) => e.stopPropagation()}
-                                       />
-                                       <button onClick={() => sendWp(client.phones?.[0], wpMessages[client.id] || '')} className="flex items-center justify-center gap-2 w-full py-3 bg-green-500 text-white rounded-xl font-black uppercase text-xs tracking-wider shadow-lg hover:bg-green-600 transition">Enviar WhatsApp ➜</button>
-                                   </div>
-                               </div>
-                           ))}
+                       {/* Tabela de Dados */}
+                       <div className="bg-white rounded-lg shadow-sm border border-slate-200 flex-1 overflow-hidden flex flex-col">
+                           <div className="overflow-x-auto flex-1">
+                               <table className="crm-table w-full">
+                                   <thead className="bg-slate-50 sticky top-0 z-10">
+                                       <tr>
+                                           <th className="w-10 text-center"><input type="checkbox" className="custom-checkbox" onChange={() => { if(selectedClients.length === clients.length) setSelectedClients([]); else setSelectedClients(clients.map(c => c.id)); }} checked={selectedClients.length === clients.length && clients.length > 0} /></th>
+                                           <th>Nome</th>
+                                           <th>E-mail</th>
+                                           <th>Telefone</th>
+                                           <th>Status do Lead</th>
+                                           <th>Imóvel de Interesse</th>
+                                           <th>Data de Criação</th>
+                                           <th>Ações</th>
+                                       </tr>
+                                   </thead>
+                                   <tbody>
+                                       {clients.filter(c => c.fullName.toLowerCase().includes(searchTerm.toLowerCase())).map(client => (
+                                           <tr key={client.id} className="group hover:bg-slate-50 transition-colors cursor-default">
+                                               <td className="text-center"><input type="checkbox" className="custom-checkbox" checked={selectedClients.includes(client.id)} onChange={() => toggleSelectClient(client.id)} /></td>
+                                               <td>
+                                                   <div className="flex items-center gap-3" onClick={() => openEdit(client, 'client')}>
+                                                       <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-xs font-bold text-slate-500 border border-slate-200">{client.fullName.charAt(0)}</div>
+                                                       <span className="font-bold text-slate-700 cursor-pointer hover:text-blue-600">{client.fullName}</span>
+                                                   </div>
+                                               </td>
+                                               <td><a href={`mailto:${client.email}`} className="text-blue-500 hover:underline">{client.email || '-'}</a></td>
+                                               <td>
+                                                   {client.phones?.[0] ? (
+                                                       <a href={`https://wa.me/55${client.phones[0].replace(/\D/g, '')}`} target="_blank" className="text-green-600 hover:text-green-700 font-bold flex items-center gap-1">
+                                                           {client.phones[0]}
+                                                       </a>
+                                                   ) : '-'}
+                                               </td>
+                                               <td>
+                                                   <span className={`px-2 py-1 rounded-md text-[10px] font-bold uppercase ${client.status === 'FECHADO' ? 'bg-green-100 text-green-700' : client.status === 'PROPOSTA' ? 'bg-purple-100 text-purple-700' : 'bg-slate-100 text-slate-500'}`}>
+                                                       {client.status || 'Novo'}
+                                                   </span>
+                                               </td>
+                                               <td><span className="text-slate-500 text-xs">{client.interest || '-'}</span></td>
+                                               <td className="text-slate-400 text-xs">{client.createdAt ? new Date(client.createdAt).toLocaleDateString('pt-BR') : '-'}</td>
+                                               <td>
+                                                   <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                       <button onClick={() => openEdit(client, 'client')} className="text-slate-400 hover:text-blue-600">✎</button>
+                                                       <button onClick={(e) => deleteItem('clients', client.id, e)} className="text-slate-400 hover:text-red-500">✕</button>
+                                                   </div>
+                                               </td>
+                                           </tr>
+                                       ))}
+                                   </tbody>
+                               </table>
+                           </div>
+                           <div className="bg-slate-50 p-3 border-t border-slate-200 text-xs text-slate-500 flex justify-between items-center">
+                               <span>{clients.length} registros totais</span>
+                               <span>{selectedClients.length} selecionados</span>
+                           </div>
                        </div>
-                   </div>
+                    </div>
                 )}
                 
                 {/* --- IMÓVEIS (FICHA TÉCNICA) --- */}
@@ -559,16 +713,118 @@ function App() {
                     </div>
                 )}
 
-                {/* --- WHATSAPP --- */}
+                {/* --- WHATSAPP & FILA DE DISPARO (NOVO!) --- */}
                 {activeTab === 'whatsapp' && (
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 animate-fadeIn h-[calc(100vh-140px)]">
+                       
+                       {/* COLUNA 1: Seleção de Destinatários */}
                        <div className="glass-panel p-6 flex flex-col">
-                           <div className="mb-6"><h3 className="text-lg font-black uppercase mb-2">Destinatários</h3><input placeholder="Buscar cliente..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="settings-input" /></div>
-                           <div className="flex-1 overflow-y-auto space-y-2 pr-2">{clients.filter(c => c.fullName.toLowerCase().includes(searchTerm.toLowerCase())).map(c => (<div key={c.id} onClick={() => toggleSelectClient(c.id)} className={`p-3 rounded-xl border flex items-center justify-between cursor-pointer transition ${selectedClients.includes(c.id) ? 'bg-primary-light border-primary' : 'bg-white border-slate-100 hover:border-blue-300'}`}><div className="flex items-center gap-3"><div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ${selectedClients.includes(c.id) ? 'bg-primary text-white' : 'bg-slate-100 text-slate-400'}`} style={selectedClients.includes(c.id) ? {backgroundColor: theme.primary} : {}}>{c.fullName.charAt(0)}</div><p className="text-xs font-bold uppercase">{c.fullName}</p></div><input type="checkbox" checked={selectedClients.includes(c.id)} readOnly className="custom-checkbox" /></div>))}</div>
+                           <div className="mb-4">
+                               <h3 className="text-lg font-black uppercase mb-1">1. Selecionar Leads</h3>
+                               <p className="text-xs text-slate-400 mb-2">Escolha quem receberá a mensagem.</p>
+                               <input placeholder="Buscar cliente..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="settings-input" />
+                           </div>
+                           <div className="flex-1 overflow-y-auto space-y-2 pr-2 border-t border-slate-100 pt-4">
+                               <div className="flex justify-between items-center mb-2 px-1">
+                                    <span className="text-xs font-bold text-slate-400">{selectedClients.length} selecionados</span>
+                                    {selectedClients.length > 0 && <button onClick={() => setSelectedClients([])} className="text-xs text-red-400 hover:underline">Limpar</button>}
+                               </div>
+                               {clients.filter(c => c.fullName.toLowerCase().includes(searchTerm.toLowerCase())).map(c => (
+                                   <div key={c.id} onClick={() => toggleSelectClient(c.id)} className={`p-3 rounded-xl border flex items-center justify-between cursor-pointer transition ${selectedClients.includes(c.id) ? 'bg-primary-light border-primary' : 'bg-white border-slate-100 hover:border-blue-300'}`}>
+                                       <div className="flex items-center gap-3">
+                                           <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ${selectedClients.includes(c.id) ? 'bg-primary text-white' : 'bg-slate-100 text-slate-400'}`} style={selectedClients.includes(c.id) ? {backgroundColor: theme.primary} : {}}>{c.fullName.charAt(0)}</div>
+                                           <div>
+                                               <p className="text-xs font-bold uppercase">{c.fullName}</p>
+                                               <p className="text-[9px] text-slate-400">{c.phones?.[0] || 'Sem telefone'}</p>
+                                           </div>
+                                       </div>
+                                       <input type="checkbox" checked={selectedClients.includes(c.id)} readOnly className="custom-checkbox" />
+                                   </div>
+                               ))}
+                           </div>
                        </div>
-                       <div className="lg:col-span-2 flex flex-col gap-6">
-                           <div className="glass-panel p-6"><h3 className="text-lg font-black uppercase mb-4">Mensagem</h3><div className="flex gap-2 mb-4 overflow-x-auto pb-2">{[{l:'Olá Inicial', t:'Olá! Tudo bem? Sou Alexandre e gostaria de apresentar oportunidades de imóveis.'}, {l:'Cobrar Visita', t:'Olá! Lembrete da nossa visita agendada para amanhã.'}].map((t,i) => (<button key={i} onClick={() => setBulkMessage(t.t)} className="px-3 py-1 bg-slate-100 text-slate-600 rounded-full text-[10px] font-black uppercase whitespace-nowrap hover:bg-slate-200 border border-slate-200">{t.l}</button>))}</div><textarea value={bulkMessage} onChange={e => setBulkMessage(e.target.value)} className="w-full h-32 p-4 bg-slate-50 rounded-xl border border-slate-200 outline-none focus:border-blue-400 font-medium text-sm" placeholder="Digite sua mensagem aqui..." /></div>
-                           <div className="glass-panel p-6 flex-1 bg-slate-900 text-white flex flex-col relative overflow-hidden"><div className="absolute top-0 right-0 w-64 h-64 bg-green-500 rounded-full blur-[100px] opacity-20"></div><h3 className="text-lg font-black uppercase mb-4 relative z-10">Central de Disparo</h3>{selectedClients.length === 0 ? (<div className="flex-1 flex flex-col items-center justify-center opacity-30"><span className="text-4xl mb-2">🚀</span><p className="text-xs font-bold uppercase">Selecione clientes</p></div>) : (<div className="flex-1 overflow-y-auto space-y-3 relative z-10 pr-2">{selectedClients.map(id => {const client = clients.find(c => c.id === id); return (<div key={id} className="flex items-center justify-between p-3 bg-white/10 rounded-xl border border-white/10"><span className="font-bold text-xs uppercase">{client?.fullName}</span><button onClick={() => sendWp(client?.phones?.[0], bulkMessage)} className="px-4 py-2 bg-green-500 hover:bg-green-400 text-white rounded-lg text-[10px] font-black uppercase transition shadow-lg">Enviar ➜</button></div>);})}</div>)}</div>
+                       
+                       {/* COLUNA 2: Mensagem e Preparação */}
+                       <div className="glass-panel p-6 flex flex-col">
+                           <div className="mb-4">
+                               <h3 className="text-lg font-black uppercase mb-1">2. Mensagem</h3>
+                               <p className="text-xs text-slate-400">Escreva o texto único para todos.</p>
+                           </div>
+                           <div className="flex gap-2 mb-4 overflow-x-auto pb-2">
+                               {[{l:'Apresentação', t:'Olá! Tudo bem? Sou Alexandre e gostaria de apresentar oportunidades de imóveis.'}, {l:'Cobrar Visita', t:'Olá! Lembrete da nossa visita agendada para amanhã.'}, {l:'Promoção', t:'Oportunidade única! Imóvel com desconto especial essa semana.'}].map((t,i) => (
+                                   <button key={i} onClick={() => setBulkMessage(t.t)} className="px-3 py-1 bg-slate-100 text-slate-600 rounded-full text-[10px] font-black uppercase whitespace-nowrap hover:bg-slate-200 border border-slate-200 transition">{t.l}</button>
+                               ))}
+                           </div>
+                           <textarea value={bulkMessage} onChange={e => setBulkMessage(e.target.value)} className="w-full h-48 p-4 bg-slate-50 rounded-xl border border-slate-200 outline-none focus:border-blue-400 font-medium text-sm mb-4 resize-none" placeholder="Digite sua mensagem aqui..." />
+                           <button onClick={handlePrepareQueue} className="btn-primary w-full py-4 rounded-xl shadow-lg uppercase text-xs font-black tracking-widest mt-auto">
+                               Preparar Fila de Disparo ➜
+                           </button>
+                       </div>
+
+                       {/* COLUNA 3: Execução da Fila */}
+                       <div className="glass-panel p-6 flex-1 bg-slate-900 text-white flex flex-col relative overflow-hidden">
+                           <div className="absolute top-0 right-0 w-64 h-64 bg-green-500 rounded-full blur-[100px] opacity-20"></div>
+                           <div className="relative z-10 flex flex-col h-full">
+                               <div className="flex justify-between items-start mb-6">
+                                   <div>
+                                       <h3 className="text-lg font-black uppercase mb-1">3. Execução</h3>
+                                       <p className="text-xs opacity-50">Envie um por um para evitar bloqueios.</p>
+                                   </div>
+                                   
+                                   {/* TOGGLE MODO TESTE (NOVO) */}
+                                   <div className="flex items-center gap-2 bg-white/10 p-2 rounded-lg">
+                                        <input type="checkbox" checked={isTestMode} onChange={(e) => setIsTestMode(e.target.checked)} className="cursor-pointer w-4 h-4 accent-green-500" />
+                                        <span className="text-[10px] font-bold uppercase">Modo Teste</span>
+                                   </div>
+                               </div>
+
+                               {isTestMode && (
+                                   <div className="mb-4 p-3 bg-yellow-500/20 border border-yellow-500/50 rounded-lg">
+                                       <p className="text-[10px] font-bold text-yellow-200 uppercase mb-1">⚠️ Redirecionamento Ativo</p>
+                                       <input value={testNumber} onChange={e => setTestNumber(e.target.value)} className="w-full bg-black/20 text-white border border-white/10 rounded px-2 py-1 text-xs" placeholder="Número de Teste" />
+                                       <p className="text-[9px] mt-1 opacity-70">Todos os disparos irão para este número.</p>
+                                   </div>
+                               )}
+                               
+                               {sendingQueue.length === 0 ? (
+                                   <div className="flex-1 flex flex-col items-center justify-center opacity-30 text-center">
+                                       <span className="text-4xl mb-2">🚀</span>
+                                       <p className="text-xs font-bold uppercase">Aguardando Preparação</p>
+                                   </div>
+                               ) : (
+                                   <>
+                                        <div className="mb-6">
+                                            <div className="flex justify-between text-xs font-bold uppercase mb-2">
+                                                <span>Progresso</span>
+                                                <span>{Math.round((currentQueueIndex / sendingQueue.length) * 100)}%</span>
+                                            </div>
+                                            <div className="w-full bg-white/10 h-2 rounded-full overflow-hidden">
+                                                <div className="bg-green-500 h-full transition-all duration-300" style={{width: `${(currentQueueIndex / sendingQueue.length) * 100}%`}}></div>
+                                            </div>
+                                            <p className="text-[10px] text-center mt-2 opacity-60">{currentQueueIndex} de {sendingQueue.length} enviados</p>
+                                        </div>
+
+                                        <div className="flex-1 overflow-y-auto space-y-2 mb-4 pr-2">
+                                            {sendingQueue.map((item, index) => (
+                                                <div key={index} className={`p-3 rounded-lg border flex justify-between items-center transition ${item.status === 'sent' ? 'bg-green-500/20 border-green-500/30 text-green-300' : index === currentQueueIndex ? 'bg-white text-slate-900 font-bold border-white' : 'bg-white/5 border-white/10 opacity-50'}`}>
+                                                    <span className="text-xs uppercase truncate w-32">{item.name}</span>
+                                                    <span className="text-[10px] font-bold uppercase">{item.status === 'sent' ? 'Enviado ✅' : index === currentQueueIndex ? 'Próximo ⏳' : 'Pendente'}</span>
+                                                </div>
+                                            ))}
+                                        </div>
+
+                                        {currentQueueIndex < sendingQueue.length ? (
+                                            <button onClick={handleSendNext} className="w-full py-5 bg-green-500 hover:bg-green-400 text-white rounded-xl text-sm font-black uppercase shadow-lg transition-all active:scale-95 animate-pulse">
+                                                {isTestMode ? `Testar Envio (${testNumber})` : `Enviar p/ ${sendingQueue[currentQueueIndex].name.split(' ')[0]} ➜`}
+                                            </button>
+                                        ) : (
+                                            <button onClick={() => { setSendingQueue([]); setCurrentQueueIndex(0); setSelectedClients([]); }} className="w-full py-4 bg-white/10 hover:bg-white/20 text-white rounded-xl text-xs font-black uppercase transition">
+                                                Finalizar Campanha
+                                            </button>
+                                        )}
+                                   </>
+                               )}
+                           </div>
                        </div>
                     </div>
                 )}
