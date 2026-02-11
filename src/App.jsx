@@ -393,7 +393,7 @@ function App() {
         return (hours * 80) + ((minutes / 60) * 80); // 80px por hora
     };
 
-    // KPIs
+    // KPIs GERAIS (USADOS NO DASHBOARD)
     const totalVGV = properties.reduce((acc, c) => acc + (parseFloat(c.price?.replace(/\D/g, '')||0)/100), 0);
     const funnelData = [
         { name: 'Lead', value: clients.filter(c => !c.status || c.status === 'LEAD').length, color: '#94a3b8' },
@@ -829,17 +829,99 @@ function App() {
                     </div>
                 )}
                 
-                {/* --- RELATÓRIOS --- */}
+                {/* --- RELATÓRIOS (ATUALIZADO E CONECTADO COM DADOS REAIS) --- */}
                 {activeTab === 'relatorios' && (
-                    <div className="space-y-8 animate-fadeIn overflow-y-auto">
-                        <div className="grid grid-cols-3 gap-6">
-                            <div className="glass-panel p-8 border-t-4 border-primary"><p className="opacity-50 text-xs font-bold uppercase mb-2">Conversão</p><p className="text-4xl font-black">12.5%</p></div>
-                            <div className="glass-panel p-8 border-t-4 border-primary"><p className="opacity-50 text-xs font-bold uppercase mb-2">Ticket Médio</p><p className="text-3xl font-black">R$ 450k</p></div>
-                            <div className="glass-panel p-8 border-t-4 border-primary"><p className="opacity-50 text-xs font-bold uppercase mb-2">Comissão (Est)</p><p className="text-3xl font-black">R$ 22k</p></div>
-                        </div>
-                        <div className="glass-panel p-8 flex items-center justify-center h-96">
-                            <ResponsiveContainer><PieChart><Pie data={[{name:'Leads', value:10, fill:'#94a3b8'}, {name:'Vendas', value:2, fill:'#22c55e'}]} innerRadius={80} outerRadius={110} dataKey="value" /><Tooltip /></PieChart></ResponsiveContainer>
-                        </div>
+                    <div className="space-y-8 animate-fadeIn overflow-y-auto pb-10">
+                        {(() => {
+                            // CÁLCULOS EM TEMPO REAL
+                            const totalClients = clients.length;
+                            const closedClients = clients.filter(c => c.status === 'FECHADO').length;
+                            const conversionRate = totalClients > 0 ? ((closedClients / totalClients) * 100).toFixed(1) : '0.0';
+
+                            // Ticket Médio baseado no estoque
+                            const prices = properties.map(p => parseFloat(p.price?.replace(/\D/g, '') || 0) / 100);
+                            const totalInventoryValue = prices.reduce((a, b) => a + b, 0);
+                            const averageTicket = properties.length > 0 ? totalInventoryValue / properties.length : 0;
+                            
+                            // Comissão Estimada (5% do VGV Total do Estoque)
+                            const estimatedCommission = totalInventoryValue * 0.05;
+
+                            // Dados para Pizza
+                            const pieData = [
+                               { name: 'Leads', value: clients.filter(c => !c.status || c.status === 'LEAD').length, fill: '#94a3b8' },
+                               { name: 'Agendados', value: clients.filter(c => c.status === 'AGENDADO').length, fill: '#f59e0b' },
+                               { name: 'Propostas', value: clients.filter(c => c.status === 'PROPOSTA').length, fill: '#8b5cf6' },
+                               { name: 'Fechados', value: closedClients, fill: '#10b981' }
+                            ];
+
+                            return (
+                                <>
+                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                        <div className="glass-panel p-8 border-t-4 border-primary hover:scale-[1.02] transition-transform">
+                                            <p className="opacity-50 text-xs font-bold uppercase mb-2">Taxa de Conversão</p>
+                                            <p className="text-4xl font-black text-slate-800">{conversionRate}%</p>
+                                            <p className="text-[10px] mt-2 opacity-60">{closedClients} fechamentos de {totalClients} leads</p>
+                                        </div>
+                                        <div className="glass-panel p-8 border-t-4 border-primary hover:scale-[1.02] transition-transform">
+                                            <p className="opacity-50 text-xs font-bold uppercase mb-2">Ticket Médio (Estoque)</p>
+                                            <p className="text-3xl font-black text-slate-800">{averageTicket.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 })}</p>
+                                            <p className="text-[10px] mt-2 opacity-60">Baseado em {properties.length} imóveis</p>
+                                        </div>
+                                        <div className="glass-panel p-8 border-t-4 border-primary hover:scale-[1.02] transition-transform">
+                                            <p className="opacity-50 text-xs font-bold uppercase mb-2">Potencial de Comissão (5%)</p>
+                                            <p className="text-3xl font-black text-green-600">{estimatedCommission.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 })}</p>
+                                            <p className="text-[10px] mt-2 opacity-60">Se vender todo o estoque atual</p>
+                                        </div>
+                                    </div>
+
+                                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                                        <div className="glass-panel p-8 flex flex-col h-96">
+                                            <h3 className="text-sm font-black uppercase opacity-50 mb-4">Distribuição de Leads</h3>
+                                            <ResponsiveContainer>
+                                                <PieChart>
+                                                    <Pie data={pieData} innerRadius={80} outerRadius={110} dataKey="value" paddingAngle={5}>
+                                                        {pieData.map((entry, index) => (
+                                                            <Cell key={`cell-${index}`} fill={entry.fill} />
+                                                        ))}
+                                                    </Pie>
+                                                    <Tooltip formatter={(value) => [value, 'Clientes']} contentStyle={{borderRadius: '10px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)'}} />
+                                                    <Legend verticalAlign="bottom" height={36} iconType="circle" />
+                                                </PieChart>
+                                            </ResponsiveContainer>
+                                        </div>
+                                        
+                                        <div className="glass-panel p-8 flex flex-col h-96">
+                                             <h3 className="text-sm font-black uppercase opacity-50 mb-6">Produtividade Geral</h3>
+                                             <div className="space-y-6 flex-1 overflow-y-auto">
+                                                 <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-100">
+                                                     <div className="flex items-center gap-4">
+                                                         <div className="w-10 h-10 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-xl">📅</div>
+                                                         <div><p className="font-black text-sm uppercase">Total Agendamentos</p><p className="text-[10px] opacity-50">Visitas e Reuniões</p></div>
+                                                     </div>
+                                                     <span className="text-2xl font-black text-slate-700">{agenda.length}</span>
+                                                 </div>
+
+                                                 <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-100">
+                                                     <div className="flex items-center gap-4">
+                                                         <div className="w-10 h-10 rounded-full bg-purple-100 text-purple-600 flex items-center justify-center text-xl">🏠</div>
+                                                         <div><p className="font-black text-sm uppercase">Imóveis Captados</p><p className="text-[10px] opacity-50">Estoque Ativo</p></div>
+                                                     </div>
+                                                     <span className="text-2xl font-black text-slate-700">{properties.length}</span>
+                                                 </div>
+
+                                                 <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-100">
+                                                     <div className="flex items-center gap-4">
+                                                         <div className="w-10 h-10 rounded-full bg-green-100 text-green-600 flex items-center justify-center text-xl">💰</div>
+                                                         <div><p className="font-black text-sm uppercase">VGV Total</p><p className="text-[10px] opacity-50">Valor Geral de Vendas</p></div>
+                                                     </div>
+                                                     <span className="text-lg font-black text-slate-700">{totalVGV.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 })}</span>
+                                                 </div>
+                                             </div>
+                                        </div>
+                                    </div>
+                                </>
+                            );
+                        })()}
                     </div>
                 )}
 
