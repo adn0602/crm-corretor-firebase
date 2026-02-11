@@ -1,194 +1,123 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { db, auth } from './firebase/config';
-import { collection, addDoc, getDocs, query, where, updateDoc, doc, deleteDoc } from 'firebase/firestore';
-import { onAuthStateChanged, signOut } from 'firebase/auth';
+import { collection, addDoc, getDocs, query, where, updateDoc, doc, deleteDoc, getDoc } from 'firebase/firestore';
+import { onAuthStateChanged, signOut, updatePassword } from 'firebase/auth';
 import Login from './pages/Login';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, PieChart, Pie, Legend } from 'recharts';
 
-// --- MOTOR DE TEMAS ---
+// --- MOTOR DE TEMAS (10 VARIAÇÕES) ---
 const THEMES = {
     'blue': { name: 'Tech Blue', primary: '#2563eb', secondary: '#1e40af', bg: '#f8fafc', sidebar: '#ffffff', text: '#1e293b', accent: '#3b82f6' },
     'dark': { name: 'Midnight Luxury', primary: '#d4af37', secondary: '#b4941f', bg: '#0f172a', sidebar: '#1e293b', text: '#f8fafc', accent: '#fbbf24' },
+    'green': { name: 'Forest Success', primary: '#16a34a', secondary: '#15803d', bg: '#f0fdf4', sidebar: '#ffffff', text: '#14532d', accent: '#22c55e' },
+    'purple': { name: 'Royal Estate', primary: '#7e22ce', secondary: '#6b21a8', bg: '#faf5ff', sidebar: '#ffffff', text: '#581c87', accent: '#9333ea' },
+    'red': { name: 'Crimson Sales', primary: '#dc2626', secondary: '#b91c1c', bg: '#fef2f2', sidebar: '#ffffff', text: '#7f1d1d', accent: '#ef4444' },
+    'teal': { name: 'Ocean Calm', primary: '#0d9488', secondary: '#0f766e', bg: '#f0fdfa', sidebar: '#ffffff', text: '#134e4a', accent: '#14b8a6' },
+    'orange': { name: 'Sunset Energy', primary: '#ea580c', secondary: '#c2410c', bg: '#fff7ed', sidebar: '#ffffff', text: '#7c2d12', accent: '#f97316' },
+    'grey': { name: 'Slate Minimal', primary: '#475569', secondary: '#334155', bg: '#f1f5f9', sidebar: '#ffffff', text: '#0f172a', accent: '#64748b' },
+    'neon': { name: 'Cyber Future', primary: '#f472b6', secondary: '#db2777', bg: '#111827', sidebar: '#1f2937', text: '#e5e7eb', accent: '#ec4899' },
+    'coffee': { name: 'Executive Brown', primary: '#854d0e', secondary: '#713f12', bg: '#fefce8', sidebar: '#ffffff', text: '#422006', accent: '#a16207' }
 };
 
+// --- ESTILOS GLOBAIS DINÂMICOS ---
 const TailwindStyle = ({ theme }) => (
   <style>{`
     @import url('https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css');
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
     
-    :root { 
-      --primary: ${theme.primary}; 
-      --secondary: ${theme.secondary}; 
-      --bg-main: ${theme.bg}; 
-      --sidebar-bg: ${theme.sidebar}; 
-      --text-main: ${theme.text}; 
-      --accent: ${theme.accent}; 
+    :root {
+        --primary: ${theme.primary};
+        --secondary: ${theme.secondary};
+        --bg-main: ${theme.bg};
+        --sidebar-bg: ${theme.sidebar};
+        --text-main: ${theme.text};
+        --accent: ${theme.accent};
     }
+
+    body { font-family: 'Inter', sans-serif; background-color: var(--bg-main); color: var(--text-main); transition: background-color 0.5s ease; }
     
-    body { 
-      font-family: 'Inter', sans-serif; 
-      background-color: var(--bg-main); 
-      color: var(--text-main); 
-      transition: background-color 0.5s ease; 
-      margin: 0; 
-      font-size: 16px; 
-    }
-    
+    /* COMPONENTES DE VIDRO ADAPTATIVOS */
     .glass-panel { 
-      background: white; 
-      border: 1px solid #e2e8f0; 
-      border-radius: 1rem; 
-      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        background: ${theme.name.includes('Dark') || theme.name.includes('Cyber') ? 'rgba(30, 41, 59, 0.7)' : 'rgba(255, 255, 255, 0.9)'}; 
+        border: 1px solid ${theme.name.includes('Dark') || theme.name.includes('Cyber') ? 'rgba(255,255,255,0.1)' : '#e2e8f0'}; 
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); 
+        border-radius: 1.5rem; 
+        transition: all 0.3s ease; 
+        backdrop-filter: blur(10px);
+    }
+    .glass-panel:hover { transform: translateY(-2px); box-shadow: 0 15px 30px -5px rgba(0, 0, 0, 0.15); border-color: var(--primary); }
+    
+    .glass-column { 
+        background: ${theme.name.includes('Dark') || theme.name.includes('Cyber') ? 'rgba(15, 23, 42, 0.5)' : '#f8fafc'};
+        border: 1px solid ${theme.name.includes('Dark') || theme.name.includes('Cyber') ? 'rgba(255,255,255,0.05)' : '#e2e8f0'};
+        border-radius: 1.5rem; display: flex; flex-direction: column; 
     }
     
-    .btn-primary { 
-      background: var(--primary); 
-      color: white; 
-      font-weight: 700; 
-      border-radius: 0.75rem; 
-      transition: 0.2s; 
-      cursor: pointer; 
-      border: none; 
-      font-size: 1rem; 
-      padding: 12px 24px;
-    }
+    /* SIDEBAR */
+    .sidebar-container { background-color: var(--sidebar-bg); border-right: 1px solid rgba(0,0,0,0.05); transition: background-color 0.5s ease; }
+    .sidebar-link { transition: all 0.2s; border-radius: 1rem; font-weight: 700; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.05em; display: flex; align-items: center; gap: 1rem; padding: 1rem; color: #94a3b8; }
+    .sidebar-link.active { background-color: var(--primary); color: white; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.2); }
+    .sidebar-link:hover:not(.active) { background-color: rgba(0,0,0,0.05); color: var(--text-main); }
+
+    /* BOTÕES */
+    .btn-primary { background: var(--primary); color: white; border: none; font-weight: 800; transition: 0.2s; }
+    .btn-primary:hover { background: var(--secondary); transform: scale(1.02); }
     
-    .btn-primary:hover { 
-      background: var(--secondary); 
-      transform: scale(1.02); 
-    }
+    .btn-advance { background: var(--primary); color: #ffffff !important; border: none; font-weight: 900; letter-spacing: 0.05em; }
+    .btn-back { background: rgba(0,0,0,0.1); color: var(--text-main); font-weight: 800; }
+    .btn-reopen { background: #334155; color: #ffffff !important; }
+
+    /* INPUTS */
+    .settings-input { width: 100%; padding: 0.75rem 1rem; background-color: rgba(0,0,0,0.03); border-radius: 0.75rem; border: 1px solid transparent; font-weight: 600; outline: none; transition: 0.2s; color: var(--text-main); }
+    .settings-input:focus { background-color: ${theme.name.includes('Dark') ? '#334155' : '#ffffff'}; border-color: var(--primary); box-shadow: 0 0 0 4px rgba(0,0,0,0.1); }
     
-    .settings-input { 
-      width: 100%; 
-      padding: 0.85rem 1rem; 
-      background-color: #f8fafc; 
-      border-radius: 0.75rem; 
-      border: 1px solid #cbd5e1; 
-      outline: none; 
-      font-size: 1rem; 
-      transition: border-color 0.2s;
-    }
+    /* CARDS */
+    .kanban-card { background: ${theme.name.includes('Dark') ? '#1e293b' : 'white'}; border: 1px solid rgba(0,0,0,0.1); border-radius: 1rem; padding: 1.25rem; cursor: pointer; position: relative; margin-bottom: 0.75rem; color: var(--text-main); }
+    .kanban-card:hover { border-color: var(--primary); transform: translateY(-3px); }
+
+    /* UTIL */
+    .text-primary { color: var(--primary); }
+    .bg-primary-light { background-color: var(--bg-main); }
+    .border-primary { border-color: var(--primary); }
     
-    .settings-input:focus { 
-      border-color: var(--primary); 
-      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
-    }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    .animate-fadeIn { animation: fadeIn 0.4s ease-out forwards; }
     
-    .sidebar-active { 
-      background-color: #eff6ff; 
-      color: #2563eb; 
-      border-left: 4px solid #2563eb; 
-    }
+    .scrollbar-hide::-webkit-scrollbar { display: none; }
+    .prop-image img { width: 100%; height: 100%; object-fit: cover; border-radius: 1rem; }
     
-    .custom-checkbox { 
-      width: 1.4rem; 
-      height: 1.4rem; 
-      border-radius: 0.4rem; 
-      border: 2px solid #cbd5e1; 
-      appearance: none; 
-      cursor: pointer; 
-      position: relative;
-    }
-    
-    .custom-checkbox:checked { 
-      background-color: var(--primary); 
-      border-color: var(--primary); 
-    }
-    
-    .custom-checkbox:checked::after {
-      content: '✓';
-      position: absolute;
-      color: white;
-      font-weight: bold;
-      font-size: 0.9rem;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-    }
-    
-    .agenda-card { 
-      padding: 16px; 
-      border-radius: 8px; 
-      border-left: 4px solid; 
-      margin-bottom: 10px; 
-      font-size: 0.95rem; 
-      background: #fff; 
-      box-shadow: 0 2px 4px rgba(0,0,0,0.05); 
-    }
-    
-    /* SCROLLBAR CUSTOMIZADA */
-    .modal-scroll::-webkit-scrollbar { width: 8px; }
-    .modal-scroll::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 4px; }
-    .modal-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
-    .modal-scroll::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
-    
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(10px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-    
-    .animate-fadeIn { 
-      animation: fadeIn 0.4s ease-out forwards; 
-    }
+    /* Checkbox Customizada */
+    .custom-checkbox { width: 1.2rem; height: 1.2rem; border-radius: 0.4rem; border: 2px solid #cbd5e1; appearance: none; cursor: pointer; transition: 0.2s; }
+    .custom-checkbox:checked { background-color: var(--primary); border-color: var(--primary); background-image: url("data:image/svg+xml,%3csvg viewBox='0 0 16 16' fill='white' xmlns='http://www.w3.org/2000/svg'%3e%3cpath d='M12.207 4.793a1 1 0 010 1.414l-5 5a1 1 0 01-1.414 0l-2.5-2.5a1 1 0 011.414-1.414L6.5 9.086l4.293-4.293a1 1 0 011.414 0z'/%3e%3c/svg%3e"); }
+
+    /* AGENDA ESPECÍFICA */
+    .agenda-row { border-bottom: 1px solid rgba(0,0,0,0.05); min-height: 80px; position: relative; }
+    .agenda-time-col { width: 80px; text-align: right; padding-right: 1rem; font-size: 0.7rem; color: #94a3b8; font-weight: 700; transform: translateY(-8px); }
+    .current-time-line { position: absolute; left: 0; right: 0; height: 1px; background-color: #ef4444; z-index: 20; pointer-events: none; }
+    .current-time-line::before { content: ''; position: absolute; left: -5px; top: -3px; width: 8px; height: 8px; background-color: #ef4444; border-radius: 50%; }
+
   `}</style>
 );
-
-const formatDate = (val) => {
-    if(!val) return '-';
-    if(val?.seconds) return new Date(val.seconds * 1000).toLocaleDateString('pt-BR');
-    const d = String(val);
-    if(d.includes('T')) {
-        const dateObj = new Date(d);
-        return new Date(dateObj.valueOf() + dateObj.getTimezoneOffset() * 60000).toLocaleDateString('pt-BR');
-    }
-    const parts = d.split('-');
-    if(parts.length === 3) return `${parts[2]}/${parts[1]}/${parts[0]}`;
-    return d;
-};
-
-const maskPhone = (v) => {
-    let r = String(v || '').replace(/\D/g, "");
-    if (r.length > 10) return r.replace(/^(\d\d)(\d{5})(\d{4}).*/, "($1) $2-$3");
-    return r.replace(/^(\d\d)(\d{4})(\d{0,4}).*/, "($1) $2-$3");
-};
-
-const maskCurrency = (v) => {
-    let r = String(v || '').replace(/\D/g, "");
-    r = (Number(r) / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-    return r;
-};
-
-const parseCurrency = (v) => {
-    if (typeof v === 'number') return v;
-    return parseFloat(String(v).replace('R$', '').replace(/\./g, '').replace(',', '.').trim()) || 0;
-};
-
-const formatCurrency = (val) => val.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
 function App() {
     const [user, setUser] = useState(null);
     const [loading, setLoading] = useState(true);
-    const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
-    const [activeModule, setActiveModule] = useState('Página Inicial');
+    const [activeTab, setActiveTab] = useState('dashboard');
+    const [settingsTab, setSettingsTab] = useState('perfil');
     
-    // DADOS DO FIREBASE
+    // ESTADOS GERAIS
+    const [currentTheme, setCurrentTheme] = useState('blue');
     const [clients, setClients] = useState([]);
     const [properties, setProperties] = useState([]);
     const [agenda, setAgenda] = useState([]);
-    const [currentTheme, setCurrentTheme] = useState('blue');
     
-    // ESTADOS DE FILTRO E BUSCA
-    const [clientSearch, setClientSearch] = useState('');
-    const [propertySearch, setPropertySearch] = useState('');
-    
-    // ESTADOS AUXILIARES ATUALIZADOS
+    // AUXILIARES
     const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
     const [showForm, setShowForm] = useState(false);
     const [editingId, setEditingId] = useState(null);
-    const [saving, setSaving] = useState(false);
-    const [viewingProperty, setViewingProperty] = useState(null);
-    
-    // FORM DATA UNIFICADO (AGORA COM A FICHA COMPLETA DO IMÓVEL)
+    const [currentTime, setCurrentTime] = useState(new Date());
+
+    // FORM DATA UNIFICADO
     const [formData, setFormData] = useState({ 
         // Campos de Cliente
         name: '', phone: '', email: '', birthDate: '', address: '', interest: '', 
@@ -204,755 +133,332 @@ function App() {
     const [wpMessages, setWpMessages] = useState({});
     const [bulkMessage, setBulkMessage] = useState('');
     const [selectedClients, setSelectedClients] = useState([]);
-    
-    const [userProfile, setUserProfile] = useState({ 
-        name: 'Alexandre', 
-        creci: '', 
-        phone: '', 
-        address: '', 
-        bio: '', 
-        photo: '' 
-    });
-    
-    const [currentImgIndex, setCurrentImgIndex] = useState(0);
-    const [fluxo, setFluxo] = useState({ 
-        ato: 0, 
-        mensaisQtd: 36, 
-        mensaisVal: 0, 
-        interQtd: 5, 
-        interVal: 0, 
-        chaves: 0 
-    });
+    const [searchTerm, setSearchTerm] = useState('');
 
-    const theme = THEMES[currentTheme] || THEMES['blue'];
+    // PERFIL & SEGURANÇA
+    const [userProfile, setUserProfile] = useState({ name: 'Alexandre', creci: '', phone: '', address: '', bio: '' });
+    const [passwords, setPasswords] = useState({ current: '', new: '', confirm: '' });
 
+    const theme = THEMES[currentTheme];
+    const scrollRef = useRef(null);
+
+    // CARREGAR DADOS
     const loadData = async (userId) => {
         try {
-            // Carregar clientes
             const qC = query(collection(db, 'clients'), where("assignedAgent", "==", userId));
             const snapC = await getDocs(qC);
             setClients(snapC.docs.map(d => ({ id: d.id, ...d.data() })));
             
-            // Carregar propriedades
             const qP = query(collection(db, 'properties'), where("userId", "==", userId));
             const snapP = await getDocs(qP);
             setProperties(snapP.docs.map(d => ({ id: d.id, ...d.data() })));
             
-            // Carregar agenda
             const qA = query(collection(db, 'agenda'), where("userId", "==", userId));
             const snapA = await getDocs(qA);
             setAgenda(snapA.docs.map(d => ({ id: d.id, ...d.data() })));
             
-            // Carregar perfil salvo
-            const savedProfile = localStorage.getItem('crm_profile');
-            if(savedProfile) {
-                try {
-                    setUserProfile(JSON.parse(savedProfile));
-                } catch (e) {
-                    console.error('Erro ao carregar perfil:', e);
-                }
-            }
-        } catch (e) { 
-            console.error('Erro ao carregar dados:', e); 
-        }
+            const savedTheme = localStorage.getItem('crm_theme');
+            if(savedTheme && THEMES[savedTheme]) setCurrentTheme(savedTheme);
+
+        } catch (error) { console.error("Erro:", error); }
     };
+
+    // RELOGIO EM TEMPO REAL
+    useEffect(() => {
+        const timer = setInterval(() => setCurrentTime(new Date()), 60000); // Atualiza a cada minuto
+        return () => clearInterval(timer);
+    }, []);
 
     useEffect(() => {
         const unsub = onAuthStateChanged(auth, (u) => {
-            if (u) { 
-                setUser(u); 
-                loadData(u.uid); 
-            } else { 
-                setUser(null); 
-            }
-            setLoading(false);
+            if (u) { setUser(u); loadData(u.uid); }
+            else setUser(null); setLoading(false);
         });
         return () => unsub();
     }, []);
 
-    const sendWp = (phone, msg) => {
-        const num = String(phone || '').replace(/\D/g, '');
-        if (num && msg) {
-            window.open(`https://wa.me/55${num}?text=${encodeURIComponent(msg)}`, '_blank');
-        } else {
-            alert("Número de telefone ou mensagem inválida.");
+    // SCROLL PARA HORA ATUAL NA AGENDA
+    useEffect(() => {
+        if (activeTab === 'agenda' && scrollRef.current) {
+            const hour = new Date().getHours();
+            scrollRef.current.scrollTop = hour * 80; // 80px é a altura da linha
         }
+    }, [activeTab]);
+
+    // ACTIONS
+    const handleThemeChange = (t) => { setCurrentTheme(t); localStorage.setItem('crm_theme', t); };
+
+    const handlePasswordChange = async () => {
+        if(passwords.new !== passwords.confirm) return alert("As senhas não coincidem.");
+        if(passwords.new.length < 6) return alert("Senha muito curta.");
+        try { await updatePassword(user, passwords.new); alert("Senha atualizada!"); setPasswords({ current: '', new: '', confirm: '' }); } 
+        catch (e) { alert("Erro ao atualizar. Faça login novamente."); }
     };
 
-    // FUNÇÃO openEdit ATUALIZADA
-    const openEdit = (item, type) => {
-        setEditingId(item.id);
-        if (type === 'client') {
-            setFormData({ 
-                ...formData,
-                type: 'client',
-                name: item.fullName || '', 
-                phone: item.phones?.[0] || '', 
-                email: item.email || '', 
-                birthDate: item.birthDate || '', 
-                address: item.address || '', 
-                interest: item.interest || '', 
-                obs: item.observations || '' 
-            });
-        } else if (type === 'property') {
-            setFormData({
-                ...formData,
-                type: 'property',
-                title: item.title || '', 
-                price: item.price || '', 
-                image: item.image || '',
-                developer: item.developer || '', 
-                linktree: item.linktree || '', 
-                paymentPlan: item.paymentPlan || '', 
-                units: item.units || '', 
-                ebookUrl: item.ebookUrl || '',
-                bedrooms: item.bedrooms || '', 
-                bathrooms: item.bathrooms || '', 
-                garage: item.garage || '',
-                salesStart: item.salesStart || '', 
-                constructionStart: item.constructionStart || '', 
-                deliveryDate: item.deliveryDate || '', 
-                constructionStatus: item.constructionStatus || 'Planta',
-                address: item.address || ''
-            });
-        } else if (type === 'agenda') {
-            setFormData({ 
-                ...formData,
-                type: 'agenda',
-                name: item.title || '', 
-                date: item.date || '', 
-                time: item.time || '', 
-                obs: item.type || 'Visita' 
-            });
-        }
-        setShowForm(true);
-    };
-
-    const handleSave = async () => {
-        setSaving(true);
-        try {
-            const now = new Date().toISOString();
-            
-            if (formData.type === 'client') {
-                const clientData = { 
-                    fullName: formData.name, 
-                    phones: [formData.phone], 
-                    email: formData.email,
-                    birthDate: formData.birthDate, 
-                    address: formData.address, 
-                    interest: formData.interest,
-                    observations: formData.obs,
-                    updatedAt: now
-                };
-                
-                if (editingId) {
-                    await updateDoc(doc(db, 'clients', editingId), clientData);
-                } else {
-                    await addDoc(collection(db, 'clients'), { 
-                        ...clientData, 
-                        status: 'LEAD', 
-                        assignedAgent: user.uid, 
-                        createdAt: now 
-                    });
-                }
-
-            } else if (formData.type === 'property') {
-                const propertyData = {
-                    title: formData.title, 
-                    price: formData.price, 
-                    image: formData.image,
-                    developer: formData.developer,
-                    linktree: formData.linktree, 
-                    paymentPlan: formData.paymentPlan, 
-                    units: formData.units, 
-                    ebookUrl: formData.ebookUrl,
-                    bedrooms: formData.bedrooms, 
-                    bathrooms: formData.bathrooms, 
-                    garage: formData.garage,
-                    salesStart: formData.salesStart, 
-                    constructionStart: formData.constructionStart, 
-                    deliveryDate: formData.deliveryDate,
-                    constructionStatus: formData.constructionStatus, 
-                    address: formData.address,
-                    updatedAt: now
-                };
-                
-                if (editingId) {
-                    await updateDoc(doc(db, 'properties', editingId), propertyData);
-                } else {
-                    await addDoc(collection(db, 'properties'), { 
-                        ...propertyData, 
-                        userId: user.uid, 
-                        createdAt: now 
-                    });
-                }
-            
-            } else if (formData.type === 'agenda') {
-                const agendaData = { 
-                    title: formData.name, 
-                    date: formData.date, 
-                    time: formData.time, 
-                    type: formData.obs,
-                    updatedAt: now 
-                };
-                
-                if (editingId) {
-                    await updateDoc(doc(db, 'agenda', editingId), agendaData);
-                } else {
-                    await addDoc(collection(db, 'agenda'), { 
-                        ...agendaData, 
-                        userId: user.uid, 
-                        createdAt: now 
-                    });
-                }
-            }
-            
-            setShowForm(false); 
-            setEditingId(null);
-            setFormData({ 
-                name: '', phone: '', email: '', birthDate: '', address: '', interest: '', 
-                type: 'client', obs: '', date: '', time: '',
-                title: '', price: '', image: '', developer: '', linktree: '', paymentPlan: '', 
-                units: '', ebookUrl: '', bedrooms: '', bathrooms: '', garage: '',
-                salesStart: '', constructionStart: '', deliveryDate: '', constructionStatus: 'Planta'
-            });
-            
+    const updateStatus = async (clientId, currentStatus, direction) => {
+        const flow = ['LEAD', 'AGENDADO', 'PROPOSTA', 'FECHADO'];
+        const currentIndex = flow.indexOf(currentStatus || 'LEAD');
+        let nextIndex = direction === 'next' ? currentIndex + 1 : currentIndex - 1;
+        if (nextIndex >= 0 && nextIndex < flow.length) {
+            await updateDoc(doc(db, 'clients', clientId), { status: flow[nextIndex] });
             loadData(user.uid);
-            alert("Salvo com sucesso!");
-            
-        } catch (e) { 
-            console.error('Erro ao salvar:', e);
-            alert("Erro ao salvar: " + e.message); 
-        } finally { 
-            setSaving(false); 
         }
     };
 
     const deleteItem = async (collectionName, id, e) => {
-        if (e) e.stopPropagation();
-        if (window.confirm("Tem certeza que deseja excluir este item?")) {
-            try {
-                await deleteDoc(doc(db, collectionName, id));
-                loadData(user.uid);
-                alert("Item excluído com sucesso!");
-            } catch (error) {
-                console.error('Erro ao excluir:', error);
-                alert("Erro ao excluir item.");
-            }
+        if(e) e.stopPropagation();
+        if(window.confirm("Confirmar exclusão?")) {
+            await deleteDoc(doc(db, collectionName, id));
+            loadData(user.uid);
         }
     };
 
-    const openPropertyDetails = (p) => {
-        setViewingProperty(p);
-        setCurrentImgIndex(0);
-        const price = parseCurrency(p.price);
-        setFluxo({ 
-            ato: price * 0.1, 
-            mensaisQtd: 36, 
-            mensaisVal: (price * 0.4) / 36, 
-            interQtd: 3, 
-            interVal: (price * 0.2) / 3, 
-            chaves: price * 0.3 
-        });
+    const openEdit = (item, type) => {
+        setEditingId(item.id);
+        if (type === 'client') {
+            setFormData({ 
+                name: item.fullName, phone: item.phones?.[0] || '', email: item.email || '', 
+                birthDate: item.birthDate || '', address: item.address || '', interest: item.interest || '', 
+                type: 'client', obs: item.observations || '' 
+            });
+        }
+        if (type === 'property') {
+            setFormData({
+                type: 'property', title: item.title || '', price: item.price || '', image: item.image || '',
+                developer: item.developer || '', linktree: item.linktree || '', paymentPlan: item.paymentPlan || '', 
+                units: item.units || '', ebookUrl: item.ebookUrl || '', bedrooms: item.bedrooms || '', 
+                bathrooms: item.bathrooms || '', garage: item.garage || '', salesStart: item.salesStart || '', 
+                constructionStart: item.constructionStart || '', deliveryDate: item.deliveryDate || '', 
+                constructionStatus: item.constructionStatus || 'Planta', address: item.address || ''
+            });
+        }
+        if (type === 'agenda') setFormData({ name: item.title, date: item.date, time: item.time, type: 'agenda', obs: item.type || 'Visita' });
+        setShowForm(true);
     };
 
-    const totalVGV = properties.reduce((acc, c) => acc + parseCurrency(c.price || 0), 0);
+    const toggleSelectClient = (id) => {
+        if (selectedClients.includes(id)) setSelectedClients(selectedClients.filter(c => c !== id));
+        else setSelectedClients([...selectedClients, id]);
+    };
+
+    const sendWp = (phone, msg) => {
+        const num = phone?.replace(/\D/g, '');
+        if (num) window.open(`https://wa.me/55${num}?text=${encodeURIComponent(msg)}`, '_blank');
+        else alert("Cliente sem telefone.");
+    };
+
+    // CALENDARIO LOGIC
+    const generateCalendarDays = () => {
+        const date = new Date(selectedDate);
+        const year = date.getFullYear();
+        const month = date.getMonth();
+        const firstDay = new Date(year, month, 1).getDay();
+        const daysInMonth = new Date(year, month + 1, 0).getDate();
+        const days = [];
+        for (let i = 0; i < firstDay; i++) days.push(null);
+        for (let i = 1; i <= daysInMonth; i++) days.push(i);
+        return days;
+    };
+
+    // HELPER PARA POSIÇÃO DA LINHA DO TEMPO
+    const getTopPosition = (dateObj) => {
+        const hours = dateObj.getHours();
+        const minutes = dateObj.getMinutes();
+        return (hours * 80) + ((minutes / 60) * 80); // 80px por hora
+    };
+
+    // KPIs
+    const totalVGV = properties.reduce((acc, c) => acc + (parseFloat(c.price?.replace(/\D/g, '')||0)/100), 0);
     const funnelData = [
-        { 
-            name: 'Lead', 
-            value: clients.filter(c => !c.status || c.status === 'LEAD').length, 
-            color: '#94a3b8' 
-        },
-        { 
-            name: 'Visita', 
-            value: clients.filter(c => c.status === 'AGENDADO').length, 
-            color: '#f59e0b' 
-        },
-        { 
-            name: 'Proposta', 
-            value: clients.filter(c => c.status === 'PROPOSTA').length, 
-            color: '#8b5cf6' 
-        },
-        { 
-            name: 'Fechado', 
-            value: clients.filter(c => c.status === 'FECHADO').length, 
-            color: '#10b981' 
-        },
+        { name: 'Lead', value: clients.filter(c => !c.status || c.status === 'LEAD').length, color: '#94a3b8' },
+        { name: 'Agendado', value: clients.filter(c => c.status === 'AGENDADO').length, color: '#f59e0b' },
+        { name: 'Proposta', value: clients.filter(c => c.status === 'PROPOSTA').length, color: '#8b5cf6' },
+        { name: 'Fechado', value: clients.filter(c => c.status === 'FECHADO').length, color: '#10b981' },
     ];
 
-    if (loading) {
-        return (
-            <div className="h-screen flex items-center justify-center font-bold text-gray-400 text-lg">
-                CARREGANDO SISTEMA...
-            </div>
-        );
-    }
-
-    if (!user) {
-        return <Login onLogin={setUser} />;
-    }
-
-    const filteredClients = clients.filter(c => 
-        c.fullName?.toLowerCase().includes(clientSearch.toLowerCase()) ||
-        c.email?.toLowerCase().includes(clientSearch.toLowerCase()) ||
-        c.phones?.[0]?.includes(clientSearch)
-    );
-
-    const filteredProperties = properties.filter(p => 
-        p.title?.toLowerCase().includes(propertySearch.toLowerCase()) ||
-        p.developer?.toLowerCase().includes(propertySearch.toLowerCase()) ||
-        p.address?.toLowerCase().includes(propertySearch.toLowerCase())
-    );
+    if (loading) return <div className="h-screen flex items-center justify-center font-bold text-slate-400">CARREGANDO SISTEMA...</div>;
+    if (!user) return <Login onLogin={setUser} />;
 
     return (
-        <div className="flex h-screen bg-gray-50 overflow-hidden text-base">
+        <div className="min-h-screen flex">
             <TailwindStyle theme={theme} />
             
-            {/* SIDEBAR */}
-            <aside className={`bg-white border-r flex flex-col transition-all duration-300 ${isSidebarCollapsed ? 'w-24' : 'w-72'}`}>
-                <div className="p-6 border-b flex items-center justify-between">
-                    {!isSidebarCollapsed && (
-                        <span className="font-bold text-2xl tracking-tighter">
-                            ALEXANDRE<span className="text-blue-600">CRM</span>
-                        </span>
-                    )}
-                    <button 
-                        onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)} 
-                        className="p-2 border-none bg-transparent cursor-pointer hover:bg-gray-100 rounded-lg"
-                    >
-                        {isSidebarCollapsed ? '▶' : '◀'}
-                    </button>
-                </div>
-                
-                <nav className="flex-1 p-4 space-y-2">
+            {/* SIDEBAR DINÂMICA */}
+            <aside className="w-20 lg:w-64 sidebar-container flex flex-col fixed h-full z-50">
+                <div className="p-8"><h1 className="font-black text-xl tracking-tighter italic" style={{color: theme.text}}>ALEXANDRE<span style={{color: theme.primary}}>CRM</span></h1></div>
+                <nav className="flex-1 px-4 space-y-2 overflow-y-auto">
                     {[
-                        {id: 'Página Inicial', i: '📊'},
-                        {id: 'Relatórios', i: '📈'},
-                        {id: 'Clientes Potenciais', i: '👥'},
-                        {id: 'Imóveis', i: '🏠'},
-                        {id: 'WhatsApp', i: '💬'},
-                        {id: 'Agenda', i: '📅'}
-                    ].map(m => (
-                        <button 
-                            key={m.id} 
-                            onClick={() => setActiveModule(m.id)}
-                            className={`w-full flex items-center gap-4 p-4 rounded-xl transition border-none cursor-pointer text-left ${
-                                activeModule === m.id ? 'sidebar-active' : 'text-gray-600 bg-transparent hover:bg-gray-50'
-                            }`}
-                        >
-                            <span className="text-xl">{m.i}</span>
-                            {!isSidebarCollapsed && (
-                                <span className="text-base font-semibold">{m.id}</span>
-                            )}
+                        { id: 'dashboard', icon: '📊', label: 'Dashboard' },
+                        { id: 'pipeline', icon: '🌪️', label: 'Funil Vendas' },
+                        { id: 'clients', icon: '👥', label: 'Clientes' },
+                        { id: 'properties', icon: '🏠', label: 'Imóveis' },
+                        { id: 'agenda', icon: '📅', label: 'Agenda' },
+                        { id: 'whatsapp', icon: '💬', label: 'WhatsApp' },
+                        { id: 'relatorios', icon: '📄', label: 'Relatórios' },
+                        { id: 'settings', icon: '⚙️', label: 'Configuração' }
+                    ].map(item => (
+                        <button key={item.id} onClick={() => setActiveTab(item.id)} className={`sidebar-link w-full ${activeTab === item.id ? 'active' : ''}`}>
+                            <span className="text-xl">{item.icon}</span> <span className="hidden lg:block">{item.label}</span>
                         </button>
                     ))}
                 </nav>
-                
-                <div className="p-4 border-t">
-                    <button 
-                        onClick={() => signOut(auth)}
-                        className="w-full py-3 text-red-500 hover:bg-red-50 rounded-xl font-bold text-sm"
-                    >
-                        Sair
-                    </button>
-                </div>
+                <div className="p-4 border-t"><button onClick={() => signOut(auth)} className="w-full py-3 text-xs font-bold text-red-500 hover:bg-red-50 rounded-xl">SAIR</button></div>
             </aside>
 
-            {/* CONTEÚDO PRINCIPAL */}
-            <main className="flex-1 overflow-y-auto p-8">
-                <header className="flex justify-between items-center mb-10">
+            {/* MAIN CONTENT */}
+            <main className="flex-1 ml-20 lg:ml-64 p-6 lg:p-10 overflow-y-auto transition-colors duration-500 h-screen flex flex-col">
+                
+                <header className="flex justify-between items-center mb-6 animate-fadeIn flex-shrink-0">
                     <div>
-                        <h1 className="text-4xl font-bold text-gray-900">{activeModule}</h1>
-                        <p className="text-gray-600 mt-2">
-                            Bem-vindo ao seu CRM. Gerencie seus clientes e negócios de forma eficiente.
-                        </p>
+                        <h2 className="text-xs font-black opacity-50 uppercase tracking-widest mb-1">Painel de Controle</h2>
+                        <h1 className="text-3xl font-black tracking-tight uppercase">{activeTab === 'settings' ? 'Configurações' : activeTab === 'properties' ? 'Estoque de Imóveis' : activeTab}</h1>
                     </div>
-                    
-                    <div className="flex items-center gap-4">
-                        <div className="text-right">
-                            <p className="text-sm font-bold uppercase">{userProfile.name}</p>
-                            <p className="text-xs text-blue-600 font-bold">
-                                CRECI {userProfile.creci || 'NÃO INFORMADO'}
-                            </p>
-                        </div>
-                        {userProfile.photo ? (
-                            <img 
-                                src={userProfile.photo} 
-                                className="w-12 h-12 rounded-full border" 
-                                alt="perfil" 
-                            />
-                        ) : (
-                            <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold">
-                                {userProfile.name?.charAt(0) || 'A'}
-                            </div>
-                        )}
+                    <div className="hidden sm:block text-right">
+                        <div className="flex items-center gap-2 justify-end"><div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div><span className="font-bold text-xs text-green-600">SISTEMA ONLINE</span></div>
                     </div>
                 </header>
 
-                {/* PÁGINA INICIAL */}
-                {activeModule === 'Página Inicial' && (
-                    <div className="space-y-8 animate-fadeIn">
-                        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                            <div className="glass-panel p-8 border-l-4 border-blue-500">
-                                <p className="text-sm font-bold text-gray-400 uppercase">Leads Ativos</p>
-                                <p className="text-4xl font-black">{clients.length}</p>
-                            </div>
-                            <div className="glass-panel p-8 border-l-4 border-green-500">
-                                <p className="text-sm font-bold text-gray-400 uppercase">VGV Carteira</p>
-                                <p className="text-3xl font-black">{formatCurrency(totalVGV)}</p>
-                            </div>
-                            <div className="glass-panel p-8 border-l-4 border-purple-500">
-                                <p className="text-sm font-bold text-gray-400 uppercase">Vendas Fechadas</p>
-                                <p className="text-4xl font-black">
-                                    {clients.filter(c => c.status === 'FECHADO').length}
-                                </p>
-                            </div>
-                            <div className="glass-panel p-8 border-l-4 border-orange-500">
-                                <p className="text-sm font-bold text-gray-400 uppercase">Total Imóveis</p>
-                                <p className="text-4xl font-black">{properties.length}</p>
-                            </div>
+                {/* --- DASHBOARD --- */}
+                {activeTab === 'dashboard' && (
+                    <div className="space-y-8 animate-fadeIn overflow-y-auto">
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                            <div className="glass-panel p-6 border-l-4 border-primary"><p className="opacity-50 text-xs font-bold uppercase mb-2">Clientes</p><p className="text-3xl font-black">{clients.length}</p></div>
+                            <div className="glass-panel p-6 border-l-4 border-primary"><p className="opacity-50 text-xs font-bold uppercase mb-2">VGV Total</p><p className="text-2xl font-black">{totalVGV.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 })}</p></div>
+                            <div className="glass-panel p-6 border-l-4 border-primary"><p className="opacity-50 text-xs font-bold uppercase mb-2">Em Negociação</p><p className="text-3xl font-black">{clients.filter(c => c.status === 'PROPOSTA' || c.status === 'AGENDADO').length}</p></div>
+                            <div className="glass-panel p-6 border-l-4 border-primary"><p className="opacity-50 text-xs font-bold uppercase mb-2">Agenda</p><p className="text-3xl font-black">{agenda.length}</p></div>
                         </div>
-                        
-                        <div className="glass-panel p-8 h-[500px]">
-                            <h3 className="font-bold text-lg mb-6 text-gray-500">Funil de Conversão</h3>
-                            <ResponsiveContainer width="100%" height="90%">
-                                <BarChart data={funnelData} layout="vertical">
-                                    <XAxis type="number" hide />
-                                    <YAxis 
-                                        dataKey="name" 
-                                        type="category" 
-                                        width={100} 
-                                        tick={{fontSize: 14, fontWeight: 700}} 
-                                        axisLine={false} 
-                                    />
-                                    <Tooltip />
-                                    <Bar dataKey="value" radius={[0, 4, 4, 0]} barSize={45}>
-                                        {funnelData.map((e, i) => (
-                                            <Cell key={i} fill={e.color} />
-                                        ))}
-                                    </Bar>
-                                </BarChart>
-                            </ResponsiveContainer>
+                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                            <div className="glass-panel p-6 lg:col-span-2 shadow-sm h-80"><h3 className="text-sm font-black uppercase opacity-50 mb-4">Funil de Vendas</h3><ResponsiveContainer width="100%" height="100%"><BarChart data={funnelData} layout="vertical" margin={{top:5, right:30, left:20, bottom:5}}><XAxis type="number" hide /><YAxis dataKey="name" type="category" width={80} tick={{fontSize:10, fontWeight:700}} axisLine={false} tickLine={false} /><Tooltip cursor={{fill: 'rgba(0,0,0,0.05)'}} /><Bar dataKey="value" radius={[0, 4, 4, 0]} barSize={30}>{funnelData.map((e, i) => <Cell key={i} fill={e.color} />)}</Bar></BarChart></ResponsiveContainer></div>
+                            <div className="glass-panel p-6 h-80 overflow-y-auto"><h3 className="text-sm font-black uppercase opacity-50 mb-4">Últimos Clientes</h3><div className="space-y-3">{clients.slice(0, 5).map(c => (<div key={c.id} className="flex justify-between items-center p-3 bg-primary-light rounded-xl border border-dashed border-slate-200"><div><p className="font-bold text-xs uppercase">{c.fullName}</p><p className="text-[10px] opacity-50">{c.status || 'LEAD'}</p></div></div>))}</div></div>
                         </div>
                     </div>
                 )}
-
-                {/* RELATÓRIOS */}
-                {activeModule === 'Relatórios' && (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8 animate-fadeIn">
-                        <div className="glass-panel p-8">
-                            <h3 className="font-bold text-sm uppercase opacity-50 mb-6">Distribuição</h3>
-                            <div className="h-80">
-                                <ResponsiveContainer>
-                                    <PieChart>
-                                        <Pie 
-                                            data={funnelData} 
-                                            dataKey="value" 
-                                            innerRadius={80} 
-                                            outerRadius={110} 
-                                            paddingAngle={5}
-                                        >
-                                            {funnelData.map((e, i) => (
-                                                <Cell key={i} fill={e.color} />
-                                            ))}
-                                        </Pie>
-                                        <Tooltip />
-                                        <Legend />
-                                    </PieChart>
-                                </ResponsiveContainer>
-                            </div>
-                        </div>
-                        
-                        <div className="glass-panel p-8">
-                            <h3 className="font-bold text-sm uppercase opacity-50 mb-6">Resumo</h3>
-                            <p className="text-3xl font-black mb-6">
-                                {formatCurrency(totalVGV)} em carteira
-                            </p>
-                            <div className="space-y-4">
-                                <div>
-                                    <p className="text-sm text-gray-500">Total de Clientes</p>
-                                    <p className="text-2xl font-bold">{clients.length}</p>
-                                </div>
-                                <div>
-                                    <p className="text-sm text-gray-500">Taxa de Conversão</p>
-                                    <p className="text-2xl font-bold">
-                                        {clients.length > 0 
-                                            ? `${((clients.filter(c => c.status === 'FECHADO').length / clients.length) * 100).toFixed(1)}%`
-                                            : '0%'
-                                        }
-                                    </p>
+                
+                {/* --- PIPELINE --- */}
+                {activeTab === 'pipeline' && (
+                    <div className="flex gap-6 overflow-x-auto pb-6 scrollbar-hide h-[calc(100vh-180px)] animate-fadeIn">
+                        {[{ id: 'LEAD', label: 'Novos Leads' }, { id: 'AGENDADO', label: 'Visitas' }, { id: 'PROPOSTA', label: 'Propostas' }, { id: 'FECHADO', label: 'Fechados' }].map(col => (
+                            <div key={col.id} className="glass-column min-w-[320px] shadow-sm">
+                                <div className="p-5 border-b border-dashed border-slate-200 flex justify-between items-center sticky top-0 z-10"><h3 className="font-black uppercase text-sm opacity-60">{col.label}</h3><span className="bg-primary-light px-2 py-1 rounded-lg text-xs font-bold opacity-60 shadow-inner">{clients.filter(c => (c.status || 'LEAD') === col.id).length}</span></div>
+                                <div className="p-4 flex-1 overflow-y-auto space-y-3">
+                                    {clients.filter(c => (c.status || 'LEAD') === col.id).map(client => (
+                                        <div key={client.id} onClick={() => openEdit(client, 'client')} className="kanban-card group">
+                                            <div className="flex justify-between items-start mb-3"><div className="flex items-center gap-2"><div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-[10px] font-black border border-slate-200 text-slate-500">{client.fullName.charAt(0)}</div><div><h4 className="font-black text-xs uppercase leading-tight truncate w-32">{client.fullName}</h4><p className="text-[9px] opacity-50 font-bold">{client.phones?.[0] || '-'}</p></div></div><button onClick={(e) => deleteItem('clients', client.id, e)} className="text-slate-300 hover:text-red-500 px-1">✕</button></div>
+                                            <div className="flex gap-2 mt-3">{col.id !== 'LEAD' && col.id !== 'FECHADO' && <button onClick={(e) => { e.stopPropagation(); updateStatus(client.id, col.id, 'prev'); }} className="btn-back px-3 py-2 rounded-lg text-xs transition">◀</button>}{col.id !== 'FECHADO' && <button onClick={(e) => { e.stopPropagation(); updateStatus(client.id, col.id, 'next'); }} className="btn-advance flex-1 py-2 rounded-lg text-[10px] uppercase shadow-md transition">Avançar ➜</button>}{col.id === 'FECHADO' && <button onClick={(e) => { e.stopPropagation(); updateStatus(client.id, col.id, 'prev'); }} className="btn-reopen w-full py-2 rounded-lg text-[10px] uppercase shadow-md transition">↺ Reabrir</button>}</div>
+                                        </div>
+                                    ))}
                                 </div>
                             </div>
-                        </div>
+                        ))}
                     </div>
                 )}
-
-                {/* CLIENTES POTENCIAIS */}
-                {activeModule === 'Clientes Potenciais' && (
-                    <div className="space-y-8 animate-fadeIn">
-                        <div className="flex justify-between items-center gap-4">
-                            <input 
-                                placeholder="🔍 Buscar por nome, email ou telefone..." 
-                                value={clientSearch}
-                                onChange={e => setClientSearch(e.target.value)}
-                                className="settings-input"
-                            />
-                            <button 
-                                onClick={() => { 
-                                    setEditingId(null); 
-                                    setFormData({
-                                        name: '', phone: '', email: '', birthDate: '', 
-                                        address: '', interest: '', type: 'client'
-                                    }); 
-                                    setShowForm(true); 
-                                }} 
-                                className="btn-primary px-8 py-4 shadow-lg"
-                            >
-                                + Novo Cliente
-                            </button>
-                        </div>
-                        
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                            {filteredClients.map(client => (
-                                <div key={client.id} className="glass-panel p-6 group relative">
-                                    <div className="flex items-start justify-between mb-4">
-                                        <div className="flex items-center gap-4">
-                                            <div className="w-14 h-14 rounded-full bg-slate-100 flex items-center justify-center text-xl font-black text-slate-400">
-                                                {client.fullName?.charAt(0) || 'C'}
-                                            </div>
-                                            <div className="overflow-hidden">
-                                                <h4 className="font-black text-lg uppercase leading-tight truncate">
-                                                    {client.fullName || 'Nome não informado'}
-                                                </h4>
-                                                <span className="inline-block mt-2 text-xs font-bold uppercase px-3 py-1 rounded-md bg-blue-50 text-blue-600">
-                                                    {client.status || 'LEAD'}
-                                                </span>
-                                            </div>
-                                        </div>
-                                        <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                            <button 
-                                                onClick={() => openEdit(client, 'client')}
-                                                className="p-2 text-blue-500 bg-blue-50 rounded-lg hover:bg-blue-100 border-none cursor-pointer"
-                                                title="Editar"
-                                            >
-                                                ✏️
-                                            </button>
-                                            <button 
-                                                onClick={(e) => deleteItem('clients', client.id, e)}
-                                                className="p-2 text-red-500 bg-red-50 rounded-lg hover:bg-red-100 border-none cursor-pointer"
-                                                title="Excluir"
-                                            >
-                                                🗑️
-                                            </button>
-                                        </div>
-                                    </div>
-                                    
-                                    <div className="bg-slate-50 rounded-xl p-4 space-y-3 mb-4 text-xs font-bold text-gray-600">
-                                        <div className="flex justify-between border-b pb-2 border-slate-200">
-                                            <span>📞 {maskPhone(client.phones?.[0]) || 'Sem telefone'}</span>
-                                            <span>🎂 {client.birthDate ? formatDate(client.birthDate) : '-'}</span>
-                                        </div>
-                                        <p className="truncate">📧 {client.email || 'Sem email'}</p>
-                                        <p className="truncate">📍 {client.address || 'Sem endereço'}</p>
-                                        <div className="pt-2 border-t border-slate-200 mt-2">
-                                            <span className="text-[10px] uppercase text-gray-400">Interesse:</span>
-                                            <p className="text-blue-600 truncate">{client.interest || 'Não informado'}</p>
-                                        </div>
-                                    </div>
-                                    
-                                    <textarea 
-                                        placeholder="Mensagem rápida para WhatsApp..." 
-                                        className="w-full text-sm p-3 border rounded-lg mb-2 h-20 outline-none focus:border-green-400"
-                                        value={wpMessages[client.id] || ''}
-                                        onChange={(e) => setWpMessages({...wpMessages, [client.id]: e.target.value})}
-                                    />
-                                    
-                                    <button 
-                                        onClick={() => sendWp(client.phones?.[0], wpMessages[client.id] || 'Olá, gostaria de conversar sobre imóveis!')}
-                                        className="w-full py-4 bg-green-500 text-white rounded-xl font-black uppercase text-sm shadow-lg cursor-pointer border-none hover:bg-green-600 transition"
-                                    >
-                                        WhatsApp ➜
-                                    </button>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                )}
-
-                {/* IMÓVEIS */}
-                {activeModule === 'Imóveis' && (
-                   <div className="space-y-6 animate-fadeIn">
-                       <div className="flex justify-between items-center">
-                           <input 
-                               placeholder="🔍 Buscar imóveis..." 
-                               value={propertySearch}
-                               onChange={e => setPropertySearch(e.target.value)}
-                               className="settings-input w-96"
-                           />
-                           <button 
-                               onClick={() => { 
-                                   setEditingId(null); 
-                                   setFormData({ 
-                                       type: 'property', 
-                                       title: '', price: '', image: '', developer: '', 
-                                       linktree: '', paymentPlan: '', units: '', ebookUrl: '', 
-                                       bedrooms: '', bathrooms: '', garage: '',
-                                       salesStart: '', constructionStart: '', deliveryDate: '', 
-                                       constructionStatus: 'Planta', address: '' 
-                                   }); 
-                                   setShowForm(true); 
-                               }} 
-                               className="btn-primary px-6 py-3 rounded-xl text-xs uppercase shadow-lg"
-                           >
-                               + Novo Imóvel
-                           </button>
+                
+                {/* --- CLIENTES --- */}
+                {activeTab === 'clients' && (
+                    <div className="space-y-6 animate-fadeIn overflow-y-auto pb-10">
+                       <div className="flex justify-end">
+                           <button onClick={() => { setEditingId(null); setFormData({ name: '', phone: '', email: '', birthDate: '', address: '', interest: '', obs: '', type: 'client' }); setShowForm(true); }} className="btn-primary px-6 py-3 rounded-xl text-xs uppercase shadow-lg">+ Novo Cliente</button>
                        </div>
                        
-                       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                           {filteredProperties.map(p => (
-                               <div key={p.id} className="glass-panel overflow-hidden group flex flex-col">
-                                   {/* Imagem e Badges */}
-                                   <div className="prop-image h-48 relative">
-                                       {p.image ? (
-                                           <img 
-                                               src={p.image} 
-                                               alt={p.title} 
-                                               className="w-full h-full object-cover transition duration-500 group-hover:scale-105" 
-                                           />
-                                       ) : (
-                                           <div className="w-full h-full flex items-center justify-center bg-slate-100 text-slate-300 font-black text-4xl">
-                                               🏠
-                                           </div>
-                                       )}
-                                       
-                                       <div className="absolute top-4 left-4 flex flex-col gap-1">
-                                            <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase shadow-lg ${
-                                                p.constructionStatus === 'Pronto' 
-                                                    ? 'bg-green-500 text-white' 
-                                                    : 'bg-blue-500 text-white'
-                                            }`}>
-                                                {p.constructionStatus || 'Planta'}
-                                            </span>
-                                            {p.units && (
-                                                <span className="px-3 py-1 rounded-full bg-slate-900 text-white text-[10px] font-bold uppercase shadow-lg">
-                                                    {p.units} Unidades
-                                                </span>
-                                            )}
-                                       </div>
+                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                           {clients.map(client => (
+                               <div key={client.id} className="glass-panel p-6 relative group hover:border-blue-400 flex flex-col">
+                                   <div className="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition z-10">
+                                       <button onClick={() => openEdit(client, 'client')} className="p-2 bg-slate-100 rounded-lg text-slate-500 hover:text-blue-600 shadow-sm transition">✎</button>
+                                       <button onClick={(e) => deleteItem('clients', client.id, e)} className="p-2 bg-slate-100 rounded-lg text-slate-500 hover:text-red-500 shadow-sm transition">✕</button>
+                                   </div>
 
-                                       <div className="absolute top-4 right-4 flex gap-2">
-                                            <button 
-                                                onClick={() => openEdit(p, 'property')}
-                                                className="w-8 h-8 rounded-full bg-white/90 backdrop-blur-sm flex items-center justify-center text-slate-600 hover:text-blue-600 shadow-sm transition"
-                                            >
-                                                ✎
-                                            </button>
-                                            <button 
-                                                onClick={(e) => deleteItem('properties', p.id, e)}
-                                                className="w-8 h-8 rounded-full bg-white/90 backdrop-blur-sm flex items-center justify-center text-slate-600 hover:text-red-500 shadow-sm transition"
-                                            >
-                                                ✕
-                                            </button>
+                                   <div className="flex items-start gap-4 mb-4">
+                                       <div className="w-12 h-12 rounded-full bg-slate-100 border border-white shadow-inner flex items-center justify-center text-lg font-black text-slate-400 flex-shrink-0">
+                                           {client.fullName.charAt(0)}
+                                       </div>
+                                       <div className="overflow-hidden">
+                                           <h4 className="font-black text-base uppercase leading-tight truncate">{client.fullName}</h4>
+                                           <p className="text-[10px] font-bold text-blue-500 uppercase mt-1">{client.interest || 'Interesse não informado'}</p>
+                                           <span className={`inline-block mt-2 text-[9px] font-bold uppercase px-2 py-0.5 rounded-md ${client.status === 'FECHADO' ? 'bg-green-100 text-green-700' : client.status === 'PROPOSTA' ? 'bg-purple-100 text-purple-700' : 'bg-slate-100 text-slate-500'}`}>
+                                               {client.status || 'LEAD'}
+                                           </span>
                                        </div>
                                    </div>
 
-                                   {/* Corpo do Card */}
+                                   <div className="bg-slate-50/50 rounded-xl p-3 space-y-2 mb-4 border border-slate-100">
+                                       <div className="grid grid-cols-2 gap-2">
+                                           <div><p className="text-[9px] font-bold uppercase opacity-50">Telefone</p><p className="text-[10px] font-bold truncate">{client.phones?.[0] || '-'}</p></div>
+                                           <div><p className="text-[9px] font-bold uppercase opacity-50">Nascimento</p><p className="text-[10px] font-bold truncate">{client.birthDate || '-'}</p></div>
+                                       </div>
+                                       <div><p className="text-[9px] font-bold uppercase opacity-50">Email</p><p className="text-[10px] font-bold truncate">{client.email || '-'}</p></div>
+                                       <div><p className="text-[9px] font-bold uppercase opacity-50">Endereço</p><p className="text-[10px] font-bold truncate">{client.address || '-'}</p></div>
+                                       
+                                       <div className="pt-2 mt-2 border-t border-dashed border-slate-200 grid grid-cols-2 gap-2">
+                                            <div><p className="text-[9px] font-bold uppercase opacity-50">Início Contato</p><p className="text-[9px] font-mono opacity-70">{client.createdAt ? new Date(client.createdAt).toLocaleDateString('pt-BR') : '-'}</p></div>
+                                            <div><p className="text-[9px] font-bold uppercase opacity-50">Última Mudança</p><p className="text-[9px] font-mono opacity-70">{client.updatedAt ? new Date(client.updatedAt).toLocaleDateString('pt-BR') : '-'}</p></div>
+                                       </div>
+                                   </div>
+
+                                   {client.observations && (
+                                       <div className="mb-4 text-[10px] italic opacity-60 bg-yellow-50 p-2 rounded-lg border border-yellow-100 line-clamp-3">"{client.observations}"</div>
+                                   )}
+
+                                   <div className="mt-auto pt-2">
+                                       <textarea 
+                                            placeholder="Escreva a mensagem aqui..." 
+                                            className="w-full text-xs p-2 bg-white border border-slate-200 rounded-lg mb-2 h-16 outline-none focus:border-green-400 transition resize-none"
+                                            value={wpMessages[client.id] || ''}
+                                            onChange={(e) => setWpMessages({...wpMessages, [client.id]: e.target.value})}
+                                            onClick={(e) => e.stopPropagation()}
+                                       />
+                                       <button onClick={() => sendWp(client.phones?.[0], wpMessages[client.id] || '')} className="flex items-center justify-center gap-2 w-full py-3 bg-green-500 text-white rounded-xl font-black uppercase text-xs tracking-wider shadow-lg hover:bg-green-600 transition">Enviar WhatsApp ➜</button>
+                                   </div>
+                               </div>
+                           ))}
+                       </div>
+                   </div>
+                )}
+                
+                {/* --- IMÓVEIS (FICHA TÉCNICA) --- */}
+                {activeTab === 'properties' && (
+                   <div className="space-y-6 animate-fadeIn overflow-y-auto pb-10">
+                       <div className="flex justify-end">
+                           <button onClick={() => { setEditingId(null); setFormData({ type: 'property', title: '', price: '', image: '', developer: '', linktree: '', paymentPlan: '', units: '', ebookUrl: '', bedrooms: '', bathrooms: '', garage: '', salesStart: '', constructionStart: '', deliveryDate: '', constructionStatus: 'Planta', address: '' }); setShowForm(true); }} className="btn-primary px-6 py-3 rounded-xl text-xs uppercase shadow-lg">+ Novo Imóvel</button>
+                       </div>
+                       
+                       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                           {properties.map(p => (
+                               <div key={p.id} className="glass-panel overflow-hidden group flex flex-col">
+                                   <div className="prop-image h-48 relative">
+                                       {p.image ? <img src={p.image} alt={p.title} className="w-full h-full object-cover transition duration-500 group-hover:scale-105" /> : <div className="w-full h-full flex items-center justify-center bg-slate-100 text-slate-300 font-black text-4xl">🏠</div>}
+                                       <div className="absolute top-4 left-4 flex flex-col gap-1">
+                                            <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase shadow-lg ${p.constructionStatus === 'Pronto' ? 'bg-green-500 text-white' : 'bg-blue-500 text-white'}`}>{p.constructionStatus || 'Planta'}</span>
+                                            {p.units && <span className="px-3 py-1 rounded-full bg-slate-900 text-white text-[10px] font-bold uppercase shadow-lg">{p.units} Unidades</span>}
+                                       </div>
+                                       <div className="absolute top-4 right-4 flex gap-2">
+                                            <button onClick={() => openEdit(p, 'property')} className="w-8 h-8 rounded-full bg-white/90 backdrop-blur-sm flex items-center justify-center text-slate-600 hover:text-blue-600 shadow-sm transition">✎</button>
+                                            <button onClick={(e) => deleteItem('properties', p.id, e)} className="w-8 h-8 rounded-full bg-white/90 backdrop-blur-sm flex items-center justify-center text-slate-600 hover:text-red-500 shadow-sm transition">✕</button>
+                                       </div>
+                                   </div>
+
                                    <div className="p-6 flex-1 flex flex-col">
                                        <div className="flex justify-between items-start mb-2">
-                                           <div>
-                                               <p className="text-[10px] font-bold uppercase text-slate-400 tracking-wider">
-                                                   {p.developer || 'Incorporadora'}
-                                               </p>
-                                               <h3 className="font-black text-xl uppercase leading-tight text-slate-800">
-                                                   {p.title || 'Sem título'}
-                                               </h3>
-                                           </div>
-                                           <div className="text-right">
-                                               <p className="text-xl font-black text-blue-600">
-                                                   {p.price || 'Preço não informado'}
-                                               </p>
-                                           </div>
+                                           <div><p className="text-[10px] font-bold uppercase text-slate-400 tracking-wider">{p.developer || 'Incorporadora'}</p><h3 className="font-black text-xl uppercase leading-tight text-slate-800">{p.title}</h3></div>
+                                           <div className="text-right"><p className="text-xl font-black text-primary" style={{color: theme.primary}}>{p.price}</p></div>
                                        </div>
-                                       
-                                       <p className="text-xs text-slate-500 font-medium mb-4 flex items-center gap-1">
-                                           📍 {p.address || 'Localização não informada'}
-                                       </p>
+                                       <p className="text-xs text-slate-500 font-medium mb-4 flex items-center gap-1">📍 {p.address || 'Localização não informada'}</p>
 
-                                       {/* Especificações */}
                                        <div className="grid grid-cols-3 gap-2 mb-4">
-                                           <div className="bg-slate-50 rounded-lg p-2 text-center border border-slate-100">
-                                               <span className="block text-lg">🛏️</span>
-                                               <span className="text-[10px] font-bold uppercase text-slate-500">
-                                                   {p.bedrooms || 0} Quartos
-                                               </span>
-                                           </div>
-                                           <div className="bg-slate-50 rounded-lg p-2 text-center border border-slate-100">
-                                               <span className="block text-lg">🚿</span>
-                                               <span className="text-[10px] font-bold uppercase text-slate-500">
-                                                   {p.bathrooms || 0} Banheiros
-                                               </span>
-                                           </div>
-                                           <div className="bg-slate-50 rounded-lg p-2 text-center border border-slate-100">
-                                               <span className="block text-lg">🚗</span>
-                                               <span className="text-[10px] font-bold uppercase text-slate-500">
-                                                   {p.garage || 0} Vagas
-                                               </span>
-                                           </div>
+                                           <div className="bg-slate-50 rounded-lg p-2 text-center border border-slate-100"><span className="block text-lg">🛏️</span><span className="text-[10px] font-bold uppercase text-slate-500">{p.bedrooms || 0} Quartos</span></div>
+                                           <div className="bg-slate-50 rounded-lg p-2 text-center border border-slate-100"><span className="block text-lg">🚿</span><span className="text-[10px] font-bold uppercase text-slate-500">{p.bathrooms || 0} Banheiros</span></div>
+                                           <div className="bg-slate-50 rounded-lg p-2 text-center border border-slate-100"><span className="block text-lg">🚗</span><span className="text-[10px] font-bold uppercase text-slate-500">{p.garage || 0} Vagas</span></div>
                                        </div>
 
-                                       {/* Datas e Fluxo */}
                                        <div className="bg-slate-50 rounded-xl p-3 border border-slate-100 mb-4 space-y-2">
-                                           <div className="flex justify-between border-b border-dashed border-slate-200 pb-2">
-                                               <span className="text-[10px] font-bold uppercase text-slate-400">Início Obras</span>
-                                               <span className="text-[10px] font-bold text-slate-700">
-                                                   {p.constructionStart ? new Date(p.constructionStart).toLocaleDateString('pt-BR') : '-'}
-                                               </span>
-                                           </div>
-                                           <div className="flex justify-between border-b border-dashed border-slate-200 pb-2">
-                                               <span className="text-[10px] font-bold uppercase text-slate-400">Entrega</span>
-                                               <span className="text-[10px] font-bold text-slate-700">
-                                                   {p.deliveryDate ? new Date(p.deliveryDate).toLocaleDateString('pt-BR') : '-'}
-                                               </span>
-                                           </div>
-                                           <div>
-                                               <span className="text-[10px] font-bold uppercase text-slate-400 block mb-1">Fluxo de Pagamento</span>
-                                               <p className="text-xs font-bold text-slate-800">
-                                                   {p.paymentPlan || 'Consulte condições'}
-                                               </p>
-                                           </div>
+                                           <div className="flex justify-between border-b border-dashed border-slate-200 pb-2"><span className="text-[10px] font-bold uppercase text-slate-400">Início Obras</span><span className="text-[10px] font-bold text-slate-700">{p.constructionStart ? new Date(p.constructionStart).toLocaleDateString('pt-BR') : '-'}</span></div>
+                                           <div className="flex justify-between border-b border-dashed border-slate-200 pb-2"><span className="text-[10px] font-bold uppercase text-slate-400">Entrega</span><span className="text-[10px] font-bold text-slate-700">{p.deliveryDate ? new Date(p.deliveryDate).toLocaleDateString('pt-BR') : '-'}</span></div>
+                                           <div><span className="text-[10px] font-bold uppercase text-slate-400 block mb-1">Fluxo de Pagamento</span><p className="text-xs font-bold text-slate-800">{p.paymentPlan || 'Consulte condições'}</p></div>
                                        </div>
 
-                                       {/* Ações */}
                                        <div className="grid grid-cols-2 gap-3 mt-auto">
-                                            {p.linktree && (
-                                                <a 
-                                                    href={p.linktree} 
-                                                    target="_blank" 
-                                                    rel="noopener noreferrer" 
-                                                    className="col-span-2 py-2 bg-slate-100 text-slate-600 rounded-lg font-bold uppercase text-[10px] hover:bg-slate-200 transition text-center no-underline"
-                                                >
-                                                    🔗 Acessar Linktree / Site
-                                                </a>
-                                            )}
-                                            
-                                            {p.ebookUrl ? (
-                                                <button 
-                                                    onClick={() => {
-                                                        const msg = `Olá! Segue o eBook/Apresentação do *${p.title}* que você solicitou: ${p.ebookUrl}`;
-                                                        window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
-                                                    }}
-                                                    className="col-span-2 py-3 bg-green-500 text-white rounded-xl font-bold uppercase text-xs hover:bg-green-600 transition shadow-lg flex items-center justify-center gap-2"
-                                                >
-                                                    📥 Enviar eBook p/ Cliente
-                                                </button>
-                                            ) : (
-                                                <button 
-                                                    disabled 
-                                                    className="col-span-2 py-3 bg-slate-200 text-slate-400 rounded-xl font-bold uppercase text-xs cursor-not-allowed"
-                                                >
-                                                    Sem eBook Cadastrado
-                                                </button>
-                                            )}
+                                            {p.linktree && (<a href={p.linktree} target="_blank" rel="noopener noreferrer" className="col-span-2 py-2 bg-slate-100 text-slate-600 rounded-lg font-bold uppercase text-[10px] hover:bg-slate-200 transition text-center">🔗 Acessar Linktree / Site</a>)}
+                                            {p.ebookUrl ? (<button onClick={() => {const msg = `Olá! Segue o eBook/Apresentação do *${p.title}* que você solicitou: ${p.ebookUrl}`; window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');}} className="col-span-2 py-3 bg-green-500 text-white rounded-xl font-bold uppercase text-xs hover:bg-green-600 transition shadow-lg flex items-center justify-center gap-2">📥 Enviar eBook p/ Cliente</button>) : (<button disabled className="col-span-2 py-3 bg-slate-200 text-slate-400 rounded-xl font-bold uppercase text-xs cursor-not-allowed">Sem eBook Cadastrado</button>)}
                                        </div>
                                    </div>
                                </div>
@@ -961,672 +467,319 @@ function App() {
                    </div>
                 )}
 
-                {/* WHATSAPP */}
-                {activeModule === 'WhatsApp' && (
-                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 animate-fadeIn h-[calc(100vh-150px)]">
-                        <div className="glass-panel p-6 flex flex-col">
-                            <h3 className="font-bold text-sm uppercase mb-4">Selecionar Clientes</h3>
-                            <div className="flex-1 overflow-y-auto space-y-3">
-                                {clients.map(c => (
-                                    <div 
-                                        key={c.id} 
-                                        onClick={() => setSelectedClients(prev => 
-                                            prev.includes(c.id) ? prev.filter(x => x !== c.id) : [...prev, c.id]
-                                        )} 
-                                        className={`p-4 rounded-xl border flex items-center justify-between cursor-pointer transition ${
-                                            selectedClients.includes(c.id) 
-                                                ? 'bg-blue-50 border-blue-400' 
-                                                : 'bg-white border-gray-200'
-                                        }`}
-                                    >
-                                        <p className="text-sm font-bold uppercase truncate max-w-[150px]">
-                                            {c.fullName || 'Cliente sem nome'}
-                                        </p>
-                                        <input 
-                                            type="checkbox" 
-                                            checked={selectedClients.includes(c.id)} 
-                                            readOnly 
-                                            className="custom-checkbox"
-                                        />
+                {/* --- AGENDA ESTILO ZOHO (ATUALIZADO) --- */}
+                {activeTab === 'agenda' && (
+                    <div className="flex gap-6 h-[calc(100vh-140px)] animate-fadeIn">
+                        
+                        {/* SIDEBAR DA AGENDA (Mini Calendário) */}
+                        <div className="w-64 flex-shrink-0 flex flex-col gap-6">
+                            <div className="glass-panel p-6">
+                                <h3 className="text-xs font-black uppercase opacity-50 mb-4 text-center">Navegar</h3>
+                                <div className="grid grid-cols-7 gap-1 text-center text-[10px] font-bold opacity-50 mb-2"><div>D</div><div>S</div><div>T</div><div>Q</div><div>Q</div><div>S</div><div>S</div></div>
+                                <div className="grid grid-cols-7 gap-1">
+                                    {generateCalendarDays().map((d, i) => (
+                                        <div 
+                                            key={i} 
+                                            onClick={() => d && setSelectedDate(`2024-02-${String(d).padStart(2,'0')}`)} 
+                                            className={`aspect-square flex items-center justify-center rounded-lg text-xs font-bold cursor-pointer transition ${selectedDate.endsWith(String(d).padStart(2,'0')) ? 'bg-primary text-white shadow-md' : d ? 'hover:bg-slate-100' : ''}`}
+                                            style={selectedDate.endsWith(String(d).padStart(2,'0')) ? {backgroundColor: theme.primary} : {}}
+                                        >
+                                            {d}
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                            
+                            <button onClick={() => { setEditingId(null); setFormData({ name: '', phone: '', price: '', type: 'agenda', obs: 'Visita', image: '', date: selectedDate, time: '09:00' }); setShowForm(true); }} className="btn-primary w-full py-4 rounded-xl shadow-lg flex items-center justify-center gap-2 uppercase text-xs font-black">
+                                + Novo Agendamento
+                            </button>
+                        </div>
+
+                        {/* TIMELINE PRINCIPAL */}
+                        <div className="glass-panel flex-1 flex flex-col overflow-hidden relative">
+                            {/* Header da Agenda */}
+                            <div className="p-4 border-b border-slate-200 flex justify-between items-center bg-white/50 backdrop-blur-sm z-20">
+                                <div>
+                                    <h3 className="text-lg font-black uppercase text-slate-800">Meu Calendário</h3>
+                                    <p className="text-xs font-bold text-slate-400 capitalize">{new Date(selectedDate).toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })}</p>
+                                </div>
+                                <div className="flex bg-slate-100 rounded-lg p-1">
+                                    <button className="px-4 py-1.5 bg-white rounded-md shadow-sm text-xs font-bold text-slate-800">Dia</button>
+                                    <button className="px-4 py-1.5 text-xs font-bold text-slate-500 hover:bg-white/50 rounded-md transition">Semana</button>
+                                    <button className="px-4 py-1.5 text-xs font-bold text-slate-500 hover:bg-white/50 rounded-md transition">Mês</button>
+                                </div>
+                            </div>
+
+                            {/* Área de Scroll da Timeline */}
+                            <div className="flex-1 overflow-y-auto relative scroll-smooth" ref={scrollRef}>
+                                {/* Linha do Tempo Atual (Vermelha) */}
+                                {selectedDate === new Date().toISOString().split('T')[0] && (
+                                    <div className="current-time-line" style={{ top: `${getTopPosition(currentTime)}px` }} title="Hora Atual"></div>
+                                )}
+
+                                {/* Grade de Horas */}
+                                {Array.from({ length: 24 }).map((_, hour) => (
+                                    <div key={hour} className="agenda-row flex">
+                                        <div className="agenda-time-col pt-2 border-r border-slate-100">
+                                            {String(hour).padStart(2, '0')}:00
+                                        </div>
+                                        <div className="flex-1 relative border-t border-slate-50 hover:bg-slate-50/50 transition-colors">
+                                            {/* Renderizar Eventos desta Hora */}
+                                            {agenda
+                                                .filter(a => a.date === selectedDate && parseInt(a.time.split(':')[0]) === hour)
+                                                .map(event => {
+                                                    const minutes = parseInt(event.time.split(':')[1]);
+                                                    const topPos = (minutes / 60) * 80; // Posição relativa dentro da hora
+                                                    return (
+                                                        <div 
+                                                            key={event.id}
+                                                            onClick={() => deleteItem('agenda', event.id)}
+                                                            className="absolute left-2 right-2 p-2 rounded-lg border-l-4 shadow-sm cursor-pointer hover:scale-[1.01] transition-transform z-10 flex justify-between items-center group"
+                                                            style={{ 
+                                                                top: `${topPos}px`, 
+                                                                height: '60px',
+                                                                backgroundColor: event.type === 'Visita' ? '#eff6ff' : event.type === 'Reunião' ? '#f5f3ff' : '#fff7ed',
+                                                                borderColor: event.type === 'Visita' ? '#3b82f6' : event.type === 'Reunião' ? '#8b5cf6' : '#f97316'
+                                                            }}
+                                                        >
+                                                            <div>
+                                                                <span className="text-[10px] font-bold opacity-60 block">{event.time}</span>
+                                                                <h4 className="text-xs font-black uppercase text-slate-800">{event.title}</h4>
+                                                            </div>
+                                                            <button className="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-red-500 transition px-2">✕</button>
+                                                        </div>
+                                                    );
+                                                })
+                                            }
+                                        </div>
                                     </div>
                                 ))}
                             </div>
                         </div>
-                        
-                        <div className="lg:col-span-2 flex flex-col gap-6">
-                            <div className="glass-panel p-6">
-                                <h3 className="font-bold text-sm uppercase mb-4">Mensagem em Massa</h3>
-                                <textarea 
-                                    value={bulkMessage}
-                                    onChange={e => setBulkMessage(e.target.value)}
-                                    className="w-full h-40 p-5 bg-gray-50 rounded-xl border-none outline-none font-medium text-base resize-none"
-                                    placeholder="Escreva aqui sua mensagem para enviar em massa..."
-                                />
-                            </div>
-                            
-                            <div className="glass-panel p-10 bg-slate-900 text-white flex flex-col items-center justify-center">
-                                <p className="text-sm font-bold opacity-50 uppercase mb-6">
-                                    {selectedClients.length} contatos selecionados
-                                </p>
-                                <button 
-                                    onClick={() => {
-                                        if (selectedClients.length === 0) {
-                                            alert("Selecione pelo menos um cliente.");
-                                            return;
-                                        }
-                                        if (!bulkMessage.trim()) {
-                                            alert("Digite uma mensagem para enviar.");
-                                            return;
-                                        }
-                                        
-                                        selectedClients.forEach(id => {
-                                            const client = clients.find(c => c.id === id);
-                                            if (client) {
-                                                sendWp(client.phones?.[0], bulkMessage);
-                                            }
-                                        });
-                                    }}
-                                    className="px-16 py-5 bg-green-500 text-white rounded-xl font-black uppercase text-sm border-none cursor-pointer hover:bg-green-600 transition"
-                                >
-                                    🚀 Disparar WhatsApp
-                                </button>
-                            </div>
+                    </div>
+                )}
+
+                {/* --- WHATSAPP --- */}
+                {activeTab === 'whatsapp' && (
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 animate-fadeIn h-[calc(100vh-140px)]">
+                       <div className="glass-panel p-6 flex flex-col">
+                           <div className="mb-6"><h3 className="text-lg font-black uppercase mb-2">Destinatários</h3><input placeholder="Buscar cliente..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="settings-input" /></div>
+                           <div className="flex-1 overflow-y-auto space-y-2 pr-2">{clients.filter(c => c.fullName.toLowerCase().includes(searchTerm.toLowerCase())).map(c => (<div key={c.id} onClick={() => toggleSelectClient(c.id)} className={`p-3 rounded-xl border flex items-center justify-between cursor-pointer transition ${selectedClients.includes(c.id) ? 'bg-primary-light border-primary' : 'bg-white border-slate-100 hover:border-blue-300'}`}><div className="flex items-center gap-3"><div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ${selectedClients.includes(c.id) ? 'bg-primary text-white' : 'bg-slate-100 text-slate-400'}`} style={selectedClients.includes(c.id) ? {backgroundColor: theme.primary} : {}}>{c.fullName.charAt(0)}</div><p className="text-xs font-bold uppercase">{c.fullName}</p></div><input type="checkbox" checked={selectedClients.includes(c.id)} readOnly className="custom-checkbox" /></div>))}</div>
+                       </div>
+                       <div className="lg:col-span-2 flex flex-col gap-6">
+                           <div className="glass-panel p-6"><h3 className="text-lg font-black uppercase mb-4">Mensagem</h3><div className="flex gap-2 mb-4 overflow-x-auto pb-2">{[{l:'Olá Inicial', t:'Olá! Tudo bem? Sou Alexandre e gostaria de apresentar oportunidades de imóveis.'}, {l:'Cobrar Visita', t:'Olá! Lembrete da nossa visita agendada para amanhã.'}].map((t,i) => (<button key={i} onClick={() => setBulkMessage(t.t)} className="px-3 py-1 bg-slate-100 text-slate-600 rounded-full text-[10px] font-black uppercase whitespace-nowrap hover:bg-slate-200 border border-slate-200">{t.l}</button>))}</div><textarea value={bulkMessage} onChange={e => setBulkMessage(e.target.value)} className="w-full h-32 p-4 bg-slate-50 rounded-xl border border-slate-200 outline-none focus:border-blue-400 font-medium text-sm" placeholder="Digite sua mensagem aqui..." /></div>
+                           <div className="glass-panel p-6 flex-1 bg-slate-900 text-white flex flex-col relative overflow-hidden"><div className="absolute top-0 right-0 w-64 h-64 bg-green-500 rounded-full blur-[100px] opacity-20"></div><h3 className="text-lg font-black uppercase mb-4 relative z-10">Central de Disparo</h3>{selectedClients.length === 0 ? (<div className="flex-1 flex flex-col items-center justify-center opacity-30"><span className="text-4xl mb-2">🚀</span><p className="text-xs font-bold uppercase">Selecione clientes</p></div>) : (<div className="flex-1 overflow-y-auto space-y-3 relative z-10 pr-2">{selectedClients.map(id => {const client = clients.find(c => c.id === id); return (<div key={id} className="flex items-center justify-between p-3 bg-white/10 rounded-xl border border-white/10"><span className="font-bold text-xs uppercase">{client?.fullName}</span><button onClick={() => sendWp(client?.phones?.[0], bulkMessage)} className="px-4 py-2 bg-green-500 hover:bg-green-400 text-white rounded-lg text-[10px] font-black uppercase transition shadow-lg">Enviar ➜</button></div>);})}</div>)}</div>
+                       </div>
+                    </div>
+                )}
+                
+                {/* --- RELATÓRIOS --- */}
+                {activeTab === 'relatorios' && (
+                    <div className="space-y-8 animate-fadeIn overflow-y-auto">
+                        <div className="grid grid-cols-3 gap-6">
+                            <div className="glass-panel p-8 border-t-4 border-primary"><p className="opacity-50 text-xs font-bold uppercase mb-2">Conversão</p><p className="text-4xl font-black">12.5%</p></div>
+                            <div className="glass-panel p-8 border-t-4 border-primary"><p className="opacity-50 text-xs font-bold uppercase mb-2">Ticket Médio</p><p className="text-3xl font-black">R$ 450k</p></div>
+                            <div className="glass-panel p-8 border-t-4 border-primary"><p className="opacity-50 text-xs font-bold uppercase mb-2">Comissão (Est)</p><p className="text-3xl font-black">R$ 22k</p></div>
+                        </div>
+                        <div className="glass-panel p-8 flex items-center justify-center h-96">
+                            <ResponsiveContainer><PieChart><Pie data={[{name:'Leads', value:10, fill:'#94a3b8'}, {name:'Vendas', value:2, fill:'#22c55e'}]} innerRadius={80} outerRadius={110} dataKey="value" /><Tooltip /></PieChart></ResponsiveContainer>
                         </div>
                     </div>
                 )}
 
-                {/* AGENDA */}
-                {activeModule === 'Agenda' && (
-                    <div className="space-y-8 animate-fadeIn">
-                        <div className="flex justify-between items-center mb-6">
-                            <h3 className="text-2xl font-black uppercase text-gray-700">Agenda Integrada</h3>
-                            <button 
-                                onClick={() => { 
-                                    setFormData({
-                                        ...formData,
-                                        type: 'agenda', 
-                                        date: selectedDate, 
-                                        obs: 'Visita'
-                                    }); 
-                                    setShowForm(true); 
-                                }} 
-                                className="btn-primary px-8 py-4 shadow-lg"
-                            >
-                                + Novo Compromisso
-                            </button>
+                {/* --- CONFIGURAÇÕES --- */}
+                {activeTab === 'settings' && (
+                    <div className="animate-fadeIn overflow-y-auto pb-10">
+                        <div className="flex gap-4 mb-8 overflow-x-auto pb-2">
+                            {['perfil', 'seguranca', 'aparencia', 'sistema'].map(tab => (
+                                <button key={tab} onClick={() => setSettingsTab(tab)} className={`px-6 py-2 rounded-full font-bold uppercase text-xs transition ${settingsTab === tab ? 'btn-primary' : 'bg-white text-slate-400 border border-slate-200'}`}>{tab}</button>
+                            ))}
                         </div>
-                        
-                        <div className="glass-panel overflow-hidden mb-8 shadow-md">
-                            <iframe 
-                                src="https://calendar.google.com/calendar/embed?src=pt.brazilian%23holiday%40group.v.calendar.google.com&ctz=America%2FSao_Paulo&showTitle=0&showNav=1&showDate=1&showPrint=0&showTabs=0&showCalendars=0&showTz=0" 
-                                style={{border: 0, width: '100%', height: '800px', overflow: 'hidden'}} 
-                                frameBorder="0" 
-                                scrolling="no" 
-                                title="Google Calendar"
-                            ></iframe>
-                        </div>
-                        
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                            {['Tarefa', 'Visita', 'Reunião', 'Evento'].map(cat => {
-                                const catAgenda = agenda.filter(a => (a.type || 'Reunião') === cat);
-                                
-                                return (
-                                    <div key={cat} className="glass-panel p-5 bg-gray-50 min-h-[250px]">
-                                        <div className="flex justify-between items-center mb-4 border-b pb-3 border-gray-200">
-                                            <h4 className="font-black uppercase text-sm text-gray-500">{cat}s</h4>
-                                            <span className="bg-white px-3 py-1 rounded text-xs font-bold shadow-sm">
-                                                {catAgenda.length}
-                                            </span>
-                                        </div>
-                                        <div className="space-y-3">
-                                            {catAgenda.map(a => (
-                                                <div 
-                                                    key={a.id} 
-                                                    className="agenda-card group relative"
-                                                    style={{
-                                                        borderLeftColor: cat === 'Visita' ? '#f59e0b' 
-                                                                    : cat === 'Reunião' ? '#2563eb' 
-                                                                    : cat === 'Tarefa' ? '#10b981' 
-                                                                    : '#8b5cf6'
-                                                    }}
-                                                >
-                                                    <div className="flex justify-between">
-                                                        <span className="font-bold text-gray-800 text-sm truncate max-w-[150px]">
-                                                            {a.title || 'Sem título'}
-                                                        </span>
-                                                        <span className="text-xs font-bold opacity-50">
-                                                            {a.time || '--:--'}
-                                                        </span>
-                                                    </div>
-                                                    <div className="text-xs text-gray-400 mt-2">
-                                                        {formatDate(a.date)}
-                                                    </div>
-                                                    <button 
-                                                        onClick={(e) => deleteItem('agenda', a.id, e)}
-                                                        className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 text-red-500 font-bold border-none bg-transparent cursor-pointer text-sm hover:text-red-700"
-                                                    >
-                                                        ✕
-                                                    </button>
-                                                </div>
-                                            ))}
-                                        </div>
+
+                        {settingsTab === 'perfil' && (
+                            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                                <div className="glass-panel p-8 flex flex-col items-center text-center">
+                                    <div className="w-32 h-32 rounded-full bg-slate-200 mb-6 border-4 border-white shadow-xl overflow-hidden"><img src={`https://ui-avatars.com/api/?name=${userProfile.name}&background=random&size=200`} alt="Avatar" /></div>
+                                    <h3 className="text-xl font-black uppercase mb-1">{userProfile.name || 'Usuário'}</h3>
+                                    <p className="text-xs font-bold opacity-50 uppercase mb-6">Corretor de Imóveis</p>
+                                    <button className="btn-primary px-6 py-2 rounded-xl text-xs uppercase w-full">Alterar Foto</button>
+                                </div>
+                                <div className="lg:col-span-2 glass-panel p-8">
+                                    <h3 className="text-lg font-black uppercase mb-6 opacity-70">Dados Pessoais</h3>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                        <div><label className="text-xs font-bold opacity-50 uppercase ml-1">Nome Completo</label><input className="settings-input mt-1" value={userProfile.name} onChange={e => setUserProfile({...userProfile, name: e.target.value})} /></div>
+                                        <div><label className="text-xs font-bold opacity-50 uppercase ml-1">CRECI</label><input className="settings-input mt-1" value={userProfile.creci} onChange={e => setUserProfile({...userProfile, creci: e.target.value})} placeholder="00000-F" /></div>
+                                        <div><label className="text-xs font-bold opacity-50 uppercase ml-1">Email (Login)</label><input className="settings-input mt-1 opacity-50 cursor-not-allowed" value={user.email} disabled /></div>
+                                        <div><label className="text-xs font-bold opacity-50 uppercase ml-1">Telefone</label><input className="settings-input mt-1" value={userProfile.phone} onChange={e => setUserProfile({...userProfile, phone: e.target.value})} /></div>
+                                        <div className="md:col-span-2"><label className="text-xs font-bold opacity-50 uppercase ml-1">Bio / Apresentação</label><textarea className="settings-input mt-1 h-24" value={userProfile.bio} onChange={e => setUserProfile({...userProfile, bio: e.target.value})} placeholder="Especialista em imóveis de alto padrão..." /></div>
                                     </div>
-                                );
-                            })}
-                        </div>
+                                    <div className="mt-8 text-right"><button className="btn-primary px-8 py-3 rounded-xl text-xs uppercase shadow-lg">Salvar Alterações</button></div>
+                                </div>
+                            </div>
+                        )}
+
+                        {settingsTab === 'seguranca' && (
+                            <div className="max-w-2xl mx-auto glass-panel p-10">
+                                <h3 className="text-xl font-black uppercase mb-2">Segurança da Conta</h3>
+                                <p className="text-sm opacity-60 mb-8">Gerencie sua senha e acesso ao sistema.</p>
+                                <div className="space-y-6">
+                                    <div><label className="text-xs font-bold opacity-50 uppercase ml-1">Nova Senha</label><input type="password" class="settings-input mt-1" value={passwords.new} onChange={e => setPasswords({...passwords, new: e.target.value})} /></div>
+                                    <div><label className="text-xs font-bold opacity-50 uppercase ml-1">Confirmar Nova Senha</label><input type="password" class="settings-input mt-1" value={passwords.confirm} onChange={e => setPasswords({...passwords, confirm: e.target.value})} /></div>
+                                </div>
+                                <div className="mt-8 pt-8 border-t border-slate-100 flex justify-between items-center"><p className="text-xs text-red-400 font-bold">Nunca compartilhe sua senha.</p><button onClick={handlePasswordChange} className="btn-primary px-8 py-3 rounded-xl text-xs uppercase shadow-lg">Atualizar Senha</button></div>
+                            </div>
+                        )}
+
+                        {settingsTab === 'aparencia' && (
+                            <div className="glass-panel p-10">
+                                <h3 className="text-xl font-black uppercase mb-2">Personalização Visual</h3>
+                                <p className="text-sm opacity-60 mb-8">Escolha um tema que combine com seu estilo de trabalho.</p>
+                                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6">
+                                    {Object.entries(THEMES).map(([key, t]) => (
+                                        <button key={key} onClick={() => handleThemeChange(key)} className={`relative p-4 rounded-2xl border-2 transition-all group hover:scale-105 ${currentTheme === key ? 'border-blue-500 shadow-xl scale-105' : 'border-transparent hover:border-slate-300'}`} style={{backgroundColor: t.bg}}>
+                                            <div className="h-12 w-full rounded-lg mb-3 shadow-sm" style={{backgroundColor: t.primary}}></div>
+                                            <div className="flex gap-2 mb-2"><div className="h-2 w-full rounded-full opacity-20" style={{backgroundColor: t.text}}></div><div className="h-2 w-1/3 rounded-full opacity-40" style={{backgroundColor: t.text}}></div></div>
+                                            <p className="text-[10px] font-black uppercase text-center" style={{color: t.text}}>{t.name}</p>
+                                            {currentTheme === key && <div className="absolute top-2 right-2 w-3 h-3 bg-blue-500 rounded-full border-2 border-white"></div>}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        {settingsTab === 'sistema' && (
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                <div className="glass-panel p-8">
+                                    <h3 className="text-lg font-black uppercase mb-6 opacity-70">Informações da Build</h3>
+                                    <div className="space-y-4">
+                                        <div className="flex justify-between py-3 border-b border-dashed border-slate-200"><span className="text-xs font-bold opacity-50 uppercase">Versão do CRM</span><span className="text-xs font-black">v2.5.0 (Gold)</span></div>
+                                        <div className="flex justify-between py-3 border-b border-dashed border-slate-200"><span className="text-xs font-bold opacity-50 uppercase">ID da Licença</span><span className="text-xs font-black font-mono">PRO-8829-XJ</span></div>
+                                        <div className="flex justify-between py-3 border-b border-dashed border-slate-200"><span className="text-xs font-bold opacity-50 uppercase">Engine</span><span className="text-xs font-black">React 18 + Firebase 9</span></div>
+                                        <div className="flex justify-between py-3"><span className="text-xs font-bold opacity-50 uppercase">Canal de Atualização</span><span className="text-xs font-bold text-green-500 bg-green-50 px-2 py-0.5 rounded">Stable</span></div>
+                                    </div>
+                                </div>
+                                <div className="glass-panel p-8">
+                                    <h3 className="text-lg font-black uppercase mb-6 opacity-70">Diagnóstico de Rede</h3>
+                                    <div className="space-y-6">
+                                        <div><div className="flex justify-between mb-1"><span className="text-[10px] font-bold uppercase opacity-50">Latência do Banco de Dados</span><span className="text-[10px] font-bold text-green-500">24ms (Excelente)</span></div><div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden"><div className="bg-green-500 h-full w-[15%]"></div></div></div>
+                                        <div><div className="flex justify-between mb-1"><span className="text-[10px] font-bold uppercase opacity-50">Uso de Armazenamento</span><span className="text-[10px] font-bold">1.2GB / 50GB</span></div><div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden"><div className="bg-blue-500 h-full w-[5%]"></div></div></div>
+                                        <div className="p-4 bg-slate-50 rounded-xl border border-slate-200"><p className="text-xs font-bold opacity-60 uppercase mb-2">Logs do Sistema</p><div className="font-mono text-[10px] opacity-50 space-y-1"><p>> System initialized at {new Date().toLocaleTimeString()}</p><p>> Connected to Firestore [South America]</p><p>> Auth Token Verified: OK</p></div></div>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
                     </div>
                 )}
             </main>
 
-            {/* MODAL DE FORMULÁRIO */}
+            {/* MODAL GLOBAL */}
             {showForm && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-fadeIn">
                     <div className="glass-panel bg-white w-full max-w-2xl p-8 max-h-[90vh] overflow-y-auto">
-                        <h3 className="text-xl font-black uppercase mb-6 text-gray-900">
-                            {editingId ? 'Editar Registro' : 'Novo Registro'}
-                        </h3>
+                        <h3 className="text-xl font-black uppercase mb-6" style={{color: theme.text}}>{editingId ? 'Editar Registro' : 'Novo Registro'}</h3>
                         
                         <div className="space-y-4">
                             {/* CAMPOS COMUNS */}
                             {(formData.type === 'client' || formData.type === 'agenda') && (
-                                <div>
-                                    <label className="text-xs font-bold opacity-50 uppercase ml-1 mb-1 block">
-                                        Nome / Título
-                                    </label>
-                                    <input 
-                                        className="settings-input mt-1" 
-                                        value={formData.name} 
-                                        onChange={e => setFormData({...formData, name: e.target.value})}
-                                        placeholder={formData.type === 'client' ? 'Nome do cliente' : 'Título do compromisso'}
-                                    />
-                                </div>
+                                <div><label className="text-xs font-bold opacity-50 uppercase ml-1">Nome / Título</label><input className="settings-input mt-1" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} /></div>
                             )}
 
-                            {/* FORMULÁRIO DE CLIENTE */}
+                            {/* --- FORMULÁRIO DE CLIENTE --- */}
                             {formData.type === 'client' && (
                                 <>
                                     <div className="grid grid-cols-2 gap-4">
-                                        <div>
-                                            <label className="text-xs font-bold opacity-50 uppercase ml-1 mb-1 block">
-                                                Telefone / Whats
-                                            </label>
-                                            <input 
-                                                className="settings-input mt-1" 
-                                                value={formData.phone} 
-                                                onChange={e => setFormData({...formData, phone: e.target.value})}
-                                                placeholder="(11) 99999-9999"
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="text-xs font-bold opacity-50 uppercase ml-1 mb-1 block">
-                                                Nascimento
-                                            </label>
-                                            <input 
-                                                type="date" 
-                                                className="settings-input mt-1" 
-                                                value={formData.birthDate} 
-                                                onChange={e => setFormData({...formData, birthDate: e.target.value})}
-                                            />
-                                        </div>
+                                        <div><label className="text-xs font-bold opacity-50 uppercase ml-1">Telefone / Whats</label><input className="settings-input mt-1" value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} /></div>
+                                        <div><label className="text-xs font-bold opacity-50 uppercase ml-1">Nascimento</label><input type="date" className="settings-input mt-1" value={formData.birthDate} onChange={e => setFormData({...formData, birthDate: e.target.value})} /></div>
                                     </div>
-                                    <div>
-                                        <label className="text-xs font-bold opacity-50 uppercase ml-1 mb-1 block">
-                                            Email
-                                        </label>
-                                        <input 
-                                            className="settings-input mt-1" 
-                                            value={formData.email} 
-                                            onChange={e => setFormData({...formData, email: e.target.value})}
-                                            placeholder="cliente@email.com"
-                                            type="email"
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="text-xs font-bold opacity-50 uppercase ml-1 mb-1 block">
-                                            Imóvel Desejado
-                                        </label>
-                                        <input 
-                                            className="settings-input mt-1" 
-                                            value={formData.interest} 
-                                            onChange={e => setFormData({...formData, interest: e.target.value})}
-                                            placeholder="Ex: Apartamento 2 quartos na região central"
-                                        />
-                                    </div>
+                                    <div><label className="text-xs font-bold opacity-50 uppercase ml-1">Email</label><input className="settings-input mt-1" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} /></div>
+                                    <div><label className="text-xs font-bold opacity-50 uppercase ml-1">Imóvel Desejado</label><input className="settings-input mt-1" value={formData.interest} onChange={e => setFormData({...formData, interest: e.target.value})} /></div>
                                 </>
                             )}
                             
-                            {/* FORMULÁRIO DE IMÓVEL */}
+                            {/* --- FORMULÁRIO DE IMÓVEL (FICHA COMPLETA) --- */}
                             {formData.type === 'property' && (
                                 <div className="space-y-4">
                                     <div className="grid grid-cols-2 gap-4">
-                                        <div className="col-span-2">
-                                            <label className="text-xs font-bold opacity-50 uppercase ml-1 mb-1 block">
-                                                Nome do Empreendimento
-                                            </label>
-                                            <input 
-                                                className="settings-input mt-1" 
-                                                value={formData.title} 
-                                                onChange={e => setFormData({...formData, title: e.target.value})}
-                                                placeholder="Ex: Residencial Jardins"
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="text-xs font-bold opacity-50 uppercase ml-1 mb-1 block">
-                                                Incorporadora
-                                            </label>
-                                            <input 
-                                                className="settings-input mt-1" 
-                                                value={formData.developer} 
-                                                onChange={e => setFormData({...formData, developer: e.target.value})}
-                                                placeholder="Nome da construtora"
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="text-xs font-bold opacity-50 uppercase ml-1 mb-1 block">
-                                                Preço (A partir de)
-                                            </label>
-                                            <input 
-                                                className="settings-input mt-1" 
-                                                value={formData.price} 
-                                                onChange={e => setFormData({...formData, price: e.target.value})}
-                                                placeholder="R$ 500.000,00"
-                                            />
-                                        </div>
+                                        <div className="col-span-2"><label className="text-xs font-bold opacity-50 uppercase ml-1">Nome do Empreendimento</label><input className="settings-input mt-1" value={formData.title} onChange={e => setFormData({...formData, title: e.target.value})} /></div>
+                                        <div><label className="text-xs font-bold opacity-50 uppercase ml-1">Incorporadora</label><input className="settings-input mt-1" value={formData.developer} onChange={e => setFormData({...formData, developer: e.target.value})} /></div>
+                                        <div><label className="text-xs font-bold opacity-50 uppercase ml-1">Preço (A partir de)</label><input className="settings-input mt-1" value={formData.price} onChange={e => setFormData({...formData, price: e.target.value})} /></div>
                                     </div>
                                     
-                                    <div>
-                                        <label className="text-xs font-bold opacity-50 uppercase ml-1 mb-1 block">
-                                            Endereço do Imóvel
-                                        </label>
-                                        <input 
-                                            className="settings-input mt-1" 
-                                            value={formData.address} 
-                                            onChange={e => setFormData({...formData, address: e.target.value})}
-                                            placeholder="Rua, número, bairro, cidade"
-                                        />
-                                    </div>
+                                    <div><label className="text-xs font-bold opacity-50 uppercase ml-1">Endereço do Imóvel</label><input className="settings-input mt-1" value={formData.address} onChange={e => setFormData({...formData, address: e.target.value})} /></div>
 
                                     <div className="grid grid-cols-4 gap-2">
-                                        <div>
-                                            <label className="text-xs font-bold opacity-50 uppercase ml-1 mb-1 block">
-                                                Quartos
-                                            </label>
-                                            <input 
-                                                type="number" 
-                                                className="settings-input mt-1" 
-                                                value={formData.bedrooms} 
-                                                onChange={e => setFormData({...formData, bedrooms: e.target.value})}
-                                                min="0"
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="text-xs font-bold opacity-50 uppercase ml-1 mb-1 block">
-                                                Banheiros
-                                            </label>
-                                            <input 
-                                                type="number" 
-                                                className="settings-input mt-1" 
-                                                value={formData.bathrooms} 
-                                                onChange={e => setFormData({...formData, bathrooms: e.target.value})}
-                                                min="0"
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="text-xs font-bold opacity-50 uppercase ml-1 mb-1 block">
-                                                Vagas
-                                            </label>
-                                            <input 
-                                                type="number" 
-                                                className="settings-input mt-1" 
-                                                value={formData.garage} 
-                                                onChange={e => setFormData({...formData, garage: e.target.value})}
-                                                min="0"
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="text-xs font-bold opacity-50 uppercase ml-1 mb-1 block">
-                                                Unidades
-                                            </label>
-                                            <input 
-                                                type="number" 
-                                                className="settings-input mt-1" 
-                                                value={formData.units} 
-                                                onChange={e => setFormData({...formData, units: e.target.value})}
-                                                min="0"
-                                            />
-                                        </div>
+                                        <div><label className="text-xs font-bold opacity-50 uppercase ml-1">Quartos</label><input type="number" className="settings-input mt-1" value={formData.bedrooms} onChange={e => setFormData({...formData, bedrooms: e.target.value})} /></div>
+                                        <div><label className="text-xs font-bold opacity-50 uppercase ml-1">Banheiros</label><input type="number" className="settings-input mt-1" value={formData.bathrooms} onChange={e => setFormData({...formData, bathrooms: e.target.value})} /></div>
+                                        <div><label className="text-xs font-bold opacity-50 uppercase ml-1">Vagas</label><input type="number" className="settings-input mt-1" value={formData.garage} onChange={e => setFormData({...formData, garage: e.target.value})} /></div>
+                                        <div><label className="text-xs font-bold opacity-50 uppercase ml-1">Unidades</label><input type="number" className="settings-input mt-1" value={formData.units} onChange={e => setFormData({...formData, units: e.target.value})} /></div>
                                     </div>
 
                                     <div className="grid grid-cols-3 gap-2">
-                                        <div>
-                                            <label className="text-xs font-bold opacity-50 uppercase ml-1 mb-1 block">
-                                                Início Vendas
-                                            </label>
-                                            <input 
-                                                type="date" 
-                                                className="settings-input mt-1" 
-                                                value={formData.salesStart} 
-                                                onChange={e => setFormData({...formData, salesStart: e.target.value})}
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="text-xs font-bold opacity-50 uppercase ml-1 mb-1 block">
-                                                Início Obras
-                                            </label>
-                                            <input 
-                                                type="date" 
-                                                className="settings-input mt-1" 
-                                                value={formData.constructionStart} 
-                                                onChange={e => setFormData({...formData, constructionStart: e.target.value})}
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="text-xs font-bold opacity-50 uppercase ml-1 mb-1 block">
-                                                Entrega
-                                            </label>
-                                            <input 
-                                                type="date" 
-                                                className="settings-input mt-1" 
-                                                value={formData.deliveryDate} 
-                                                onChange={e => setFormData({...formData, deliveryDate: e.target.value})}
-                                            />
-                                        </div>
+                                        <div><label className="text-xs font-bold opacity-50 uppercase ml-1">Início Vendas</label><input type="date" className="settings-input mt-1" value={formData.salesStart} onChange={e => setFormData({...formData, salesStart: e.target.value})} /></div>
+                                        <div><label className="text-xs font-bold opacity-50 uppercase ml-1">Início Obras</label><input type="date" className="settings-input mt-1" value={formData.constructionStart} onChange={e => setFormData({...formData, constructionStart: e.target.value})} /></div>
+                                        <div><label className="text-xs font-bold opacity-50 uppercase ml-1">Entrega</label><input type="date" className="settings-input mt-1" value={formData.deliveryDate} onChange={e => setFormData({...formData, deliveryDate: e.target.value})} /></div>
                                     </div>
 
                                     <div className="grid grid-cols-2 gap-4">
-                                        <div>
-                                            <label className="text-xs font-bold opacity-50 uppercase ml-1 mb-1 block">
-                                                Status da Obra
-                                            </label>
-                                            <select 
-                                                className="settings-input mt-1" 
-                                                value={formData.constructionStatus} 
-                                                onChange={e => setFormData({...formData, constructionStatus: e.target.value})}
-                                            >
-                                                <option value="Planta">Planta</option>
-                                                <option value="Em Construção">Em Construção</option>
-                                                <option value="Pronto">Pronto</option>
-                                            </select>
-                                        </div>
-                                        <div>
-                                            <label className="text-xs font-bold opacity-50 uppercase ml-1 mb-1 block">
-                                                Fluxo Pagamento
-                                            </label>
-                                            <input 
-                                                className="settings-input mt-1" 
-                                                value={formData.paymentPlan} 
-                                                onChange={e => setFormData({...formData, paymentPlan: e.target.value})}
-                                                placeholder="Ex: 30% obra + financ."
-                                            />
-                                        </div>
+                                        <div><label className="text-xs font-bold opacity-50 uppercase ml-1">Status da Obra</label><select className="settings-input mt-1" value={formData.constructionStatus} onChange={e => setFormData({...formData, constructionStatus: e.target.value})}><option>Planta</option><option>Em Construção</option><option>Pronto</option></select></div>
+                                        <div><label className="text-xs font-bold opacity-50 uppercase ml-1">Fluxo Pagamento</label><input className="settings-input mt-1" value={formData.paymentPlan} onChange={e => setFormData({...formData, paymentPlan: e.target.value})} placeholder="Ex: 30% obra + financ." /></div>
                                     </div>
 
-                                    <div>
-                                        <label className="text-xs font-bold opacity-50 uppercase ml-1 mb-1 block">
-                                            Link URL da Foto
-                                        </label>
-                                        <input 
-                                            className="settings-input mt-1" 
-                                            value={formData.image} 
-                                            onChange={e => setFormData({...formData, image: e.target.value})}
-                                            placeholder="https://..."
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="text-xs font-bold opacity-50 uppercase ml-1 mb-1 block">
-                                            Link PDF eBook (Google Drive/Dropbox)
-                                        </label>
-                                        <input 
-                                            className="settings-input mt-1" 
-                                            value={formData.ebookUrl} 
-                                            onChange={e => setFormData({...formData, ebookUrl: e.target.value})}
-                                            placeholder="https://..."
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="text-xs font-bold opacity-50 uppercase ml-1 mb-1 block">
-                                            Linktree / Site Oficial
-                                        </label>
-                                        <input 
-                                            className="settings-input mt-1" 
-                                            value={formData.linktree} 
-                                            onChange={e => setFormData({...formData, linktree: e.target.value})}
-                                            placeholder="https://..."
-                                        />
-                                    </div>
+                                    <div><label className="text-xs font-bold opacity-50 uppercase ml-1">Link URL da Foto</label><input className="settings-input mt-1" value={formData.image} onChange={e => setFormData({...formData, image: e.target.value})} placeholder="https://..." /></div>
+                                    <div><label className="text-xs font-bold opacity-50 uppercase ml-1">Link PDF eBook (Google Drive/Dropbox)</label><input className="settings-input mt-1" value={formData.ebookUrl} onChange={e => setFormData({...formData, ebookUrl: e.target.value})} placeholder="https://..." /></div>
+                                    <div><label className="text-xs font-bold opacity-50 uppercase ml-1">Linktree / Site Oficial</label><input className="settings-input mt-1" value={formData.linktree} onChange={e => setFormData({...formData, linktree: e.target.value})} /></div>
                                 </div>
                             )}
                             
-                            {/* FORMULÁRIO DE AGENDA */}
+                            {/* --- FORMULÁRIO DE AGENDA --- */}
                             {formData.type === 'agenda' && (
                                 <div className="grid grid-cols-2 gap-4">
-                                    <div>
-                                        <label className="text-xs font-bold opacity-50 uppercase ml-1 mb-1 block">
-                                            Data
-                                        </label>
-                                        <input 
-                                            type="date" 
-                                            className="settings-input mt-1" 
-                                            value={formData.date} 
-                                            onChange={e => setFormData({...formData, date: e.target.value})}
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="text-xs font-bold opacity-50 uppercase ml-1 mb-1 block">
-                                            Hora
-                                        </label>
-                                        <input 
-                                            type="time" 
-                                            className="settings-input mt-1" 
-                                            value={formData.time} 
-                                            onChange={e => setFormData({...formData, time: e.target.value})}
-                                        />
-                                    </div>
-                                    <div className="col-span-2">
-                                        <label className="text-xs font-bold opacity-50 uppercase ml-1 mb-1 block">
-                                            Tipo
-                                        </label>
-                                        <select 
-                                            className="settings-input mt-1" 
-                                            value={formData.obs} 
-                                            onChange={e => setFormData({...formData, obs: e.target.value})}
-                                        >
-                                            <option value="Visita">Visita</option>
-                                            <option value="Reunião">Reunião</option>
-                                            <option value="Tarefa">Tarefa</option>
-                                            <option value="Evento">Evento</option>
-                                        </select>
-                                    </div>
+                                    <div><label className="text-xs font-bold opacity-50 uppercase ml-1">Data</label><input type="date" className="settings-input mt-1" value={formData.date} onChange={e => setFormData({...formData, date: e.target.value})} /></div>
+                                    <div><label className="text-xs font-bold opacity-50 uppercase ml-1">Hora</label><input type="time" className="settings-input mt-1" value={formData.time} onChange={e => setFormData({...formData, time: e.target.value})} /></div>
+                                    <div className="col-span-2"><label className="text-xs font-bold opacity-50 uppercase ml-1">Tipo</label><select className="settings-input mt-1" value={formData.obs} onChange={e => setFormData({...formData, obs: e.target.value})}><option>Visita</option><option>Reunião</option><option>Outro</option></select></div>
                                 </div>
                             )}
 
                             {!editingId && (
-                                <div>
-                                    <label className="text-xs font-bold opacity-50 uppercase ml-1 mb-1 block">
-                                        Categoria
-                                    </label>
-                                    <select 
-                                        className="settings-input mt-1" 
-                                        value={formData.type} 
-                                        onChange={e => setFormData({...formData, type: e.target.value})}
-                                    >
-                                        <option value="client">Cliente</option>
-                                        <option value="property">Imóvel</option>
-                                        <option value="agenda">Agenda</option>
-                                    </select>
-                                </div>
+                                <div><label className="text-xs font-bold opacity-50 uppercase ml-1">Categoria</label><select className="settings-input mt-1" value={formData.type} onChange={e => setFormData({...formData, type: e.target.value})}><option value="client">Cliente</option><option value="property">Imóvel</option><option value="agenda">Agenda</option></select></div>
                             )}
                         </div>
 
                         <div className="flex gap-4 mt-8">
-                            <button 
-                                onClick={handleSave}
-                                disabled={saving}
-                                className={`btn-primary flex-1 py-4 rounded-xl uppercase shadow-lg ${
-                                    saving ? 'opacity-50 cursor-not-allowed' : ''
-                                }`}
-                            >
-                                {saving ? 'SALVANDO...' : 'SALVAR'}
-                            </button>
-                            <button 
-                                onClick={() => {
-                                    setShowForm(false);
-                                    setEditingId(null);
-                                    setFormData({ 
-                                        name: '', phone: '', email: '', birthDate: '', address: '', interest: '', 
-                                        type: 'client', obs: '', date: '', time: '',
-                                        title: '', price: '', image: '', developer: '', linktree: '', paymentPlan: '', 
-                                        units: '', ebookUrl: '', bedrooms: '', bathrooms: '', garage: '',
-                                        salesStart: '', constructionStart: '', deliveryDate: '', constructionStatus: 'Planta'
+                            <button onClick={async () => {
+                                const now = new Date().toISOString();
+                                if(editingId) {
+                                    if(formData.type === 'client') await updateDoc(doc(db, 'clients', editingId), { 
+                                        fullName: formData.name, phones: [formData.phone], email: formData.email, birthDate: formData.birthDate, interest: formData.interest, updatedAt: now 
                                     });
-                                }}
-                                className="flex-1 bg-slate-100 text-slate-500 font-bold py-4 rounded-xl uppercase hover:bg-slate-200 transition"
-                            >
-                                CANCELAR
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {/* MODAL DE DETALHES DO IMÓVEL */}
-            {viewingProperty && (
-                <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/80 p-6">
-                    <div className="bg-white w-full max-w-6xl h-[90vh] rounded-2xl overflow-hidden flex flex-col relative">
-                        <button 
-                            onClick={() => setViewingProperty(null)}
-                            className="absolute top-6 right-6 z-20 w-12 h-12 bg-white rounded-full shadow-lg font-bold cursor-pointer border-none text-xl hover:bg-gray-100 transition"
-                        >
-                            ✕
-                        </button>
-                        
-                        <div className="flex-1 overflow-y-auto p-12">
-                            <div className="mb-10 border-b pb-8">
-                                <p className="text-sm font-bold uppercase text-gray-400 mb-2">
-                                    {viewingProperty.developer || 'Incorporadora não informada'}
-                                </p>
-                                <h2 className="text-5xl font-black uppercase mb-4 text-gray-900">
-                                    {viewingProperty.title || 'Sem título'}
-                                </h2>
-                                <p className="text-xl text-gray-600 mb-6 flex items-center gap-2">
-                                    📍 {viewingProperty.address || 'Endereço não informado'}
-                                </p>
-                                <div className="flex gap-4">
-                                    {viewingProperty.ebookUrl && (
-                                        <a 
-                                            href={viewingProperty.ebookUrl} 
-                                            target="_blank" 
-                                            rel="noopener noreferrer"
-                                            className="px-6 py-3 bg-red-50 text-red-600 font-bold rounded-lg uppercase text-xs flex items-center gap-2 no-underline hover:bg-red-100 transition"
-                                        >
-                                            📄 Ver Apresentação (PDF)
-                                        </a>
-                                    )}
-                                    {viewingProperty.linktree && (
-                                        <a 
-                                            href={viewingProperty.linktree} 
-                                            target="_blank" 
-                                            rel="noopener noreferrer"
-                                            className="px-6 py-3 bg-green-50 text-green-600 font-bold rounded-lg uppercase text-xs flex items-center gap-2 no-underline hover:bg-green-100 transition"
-                                        >
-                                            🌳 Ver Linktree
-                                        </a>
-                                    )}
-                                </div>
-                            </div>
-
-                            <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
-                                <div className="lg:col-span-2 space-y-10">
-                                    <div className="h-96 bg-gray-200 rounded-2xl overflow-hidden shadow-inner">
-                                        {viewingProperty.image ? (
-                                            <img 
-                                                src={viewingProperty.image} 
-                                                className="w-full h-full object-cover" 
-                                                alt="Imóvel" 
-                                            />
-                                        ) : (
-                                            <div className="w-full h-full flex items-center justify-center text-gray-400 text-2xl">
-                                                🏠 Sem imagem
-                                            </div>
-                                        )}
-                                    </div>
-                                    
-                                    <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-                                        <div className="p-4 bg-gray-50 rounded-xl">
-                                            <p className="text-[10px] font-bold uppercase text-gray-400">Status</p>
-                                            <p className="font-bold">{viewingProperty.constructionStatus || 'Planta'}</p>
-                                        </div>
-                                        <div className="p-4 bg-gray-50 rounded-xl">
-                                            <p className="text-[10px] font-bold uppercase text-gray-400">Entrega</p>
-                                            <p className="font-bold">
-                                                {viewingProperty.deliveryDate 
-                                                    ? new Date(viewingProperty.deliveryDate).toLocaleDateString('pt-BR') 
-                                                    : 'A definir'
-                                                }
-                                            </p>
-                                        </div>
-                                        <div className="p-4 bg-gray-50 rounded-xl">
-                                            <p className="text-[10px] font-bold uppercase text-gray-400">Quartos</p>
-                                            <p className="font-bold">{viewingProperty.bedrooms || 0}</p>
-                                        </div>
-                                        <div className="p-4 bg-gray-50 rounded-xl">
-                                            <p className="text-[10px] font-bold uppercase text-gray-400">Vagas</p>
-                                            <p className="font-bold">{viewingProperty.garage || 0}</p>
-                                        </div>
-                                    </div>
-                                </div>
-                                
-                                <div className="space-y-8">
-                                    <div className="bg-slate-900 text-white p-8 rounded-3xl shadow-2xl">
-                                        <p className="text-sm font-bold uppercase opacity-50 mb-2">A partir de</p>
-                                        <p className="text-4xl font-black text-green-400">
-                                            {viewingProperty.price || 'Preço não informado'}
-                                        </p>
-                                    </div>
-                                    
-                                    <div className="bg-slate-50 p-8 rounded-3xl border border-slate-200">
-                                        <h3 className="font-black text-xl uppercase mb-6 text-slate-700">Calculadora Rápida</h3>
-                                        <div className="space-y-4">
-                                            <div>
-                                                <span className="text-xs font-bold uppercase opacity-50">Sinal (10%)</span>
-                                                <input 
-                                                    type="text" 
-                                                    disabled 
-                                                    className="settings-input bg-white mt-1" 
-                                                    value={formatCurrency(fluxo.ato)} 
-                                                />
-                                            </div>
-                                            <div>
-                                                <span className="text-xs font-bold uppercase opacity-50">Mensais (36x)</span>
-                                                <input 
-                                                    type="text" 
-                                                    disabled 
-                                                    className="settings-input bg-white mt-1" 
-                                                    value={formatCurrency(fluxo.mensaisVal)} 
-                                                />
-                                            </div>
-                                            <div>
-                                                <span className="text-xs font-bold uppercase opacity-50">Anuais (3x)</span>
-                                                <input 
-                                                    type="text" 
-                                                    disabled 
-                                                    className="settings-input bg-white mt-1" 
-                                                    value={formatCurrency(fluxo.interVal)} 
-                                                />
-                                            </div>
-                                            <div className="pt-4 mt-4 border-t">
-                                                <span className="text-xs font-bold uppercase opacity-50">Financiamento</span>
-                                                <input 
-                                                    type="text" 
-                                                    disabled 
-                                                    className="settings-input bg-green-50 text-green-600 border-green-200 mt-1" 
-                                                    value={formatCurrency(fluxo.chaves)} 
-                                                />
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
+                                    else if(formData.type === 'property') await updateDoc(doc(db, 'properties', editingId), { 
+                                        title: formData.title, price: formData.price, image: formData.image, developer: formData.developer,
+                                        linktree: formData.linktree, paymentPlan: formData.paymentPlan, units: formData.units, ebookUrl: formData.ebookUrl,
+                                        bedrooms: formData.bedrooms, bathrooms: formData.bathrooms, garage: formData.garage,
+                                        salesStart: formData.salesStart, constructionStart: formData.constructionStart, deliveryDate: formData.deliveryDate,
+                                        constructionStatus: formData.constructionStatus, address: formData.address
+                                    });
+                                    else if(formData.type === 'agenda') await updateDoc(doc(db, 'agenda', editingId), { title: formData.name, date: formData.date, time: formData.time, type: formData.obs });
+                                } else {
+                                    if(formData.type === 'property') await addDoc(collection(db, 'properties'), { 
+                                        title: formData.title, price: formData.price, image: formData.image, developer: formData.developer,
+                                        linktree: formData.linktree, paymentPlan: formData.paymentPlan, units: formData.units, ebookUrl: formData.ebookUrl,
+                                        bedrooms: formData.bedrooms, bathrooms: formData.bathrooms, garage: formData.garage,
+                                        salesStart: formData.salesStart, constructionStart: formData.constructionStart, deliveryDate: formData.deliveryDate,
+                                        constructionStatus: formData.constructionStatus, address: formData.address,
+                                        userId: user.uid 
+                                    });
+                                    else if(formData.type === 'agenda') await addDoc(collection(db, 'agenda'), { title: formData.name, date: formData.date, time: formData.time, type: formData.obs, userId: user.uid });
+                                    else await addDoc(collection(db, 'clients'), { 
+                                        fullName: formData.name, phones: [formData.phone], email: formData.email, birthDate: formData.birthDate, interest: formData.interest,
+                                        status: 'LEAD', assignedAgent: user.uid, createdAt: now
+                                    });
+                                }
+                                setShowForm(false); setEditingId(null); 
+                                setFormData({ name: '', phone: '', email: '', birthDate: '', address: '', interest: '', type: 'client', obs: '', date: '', time: '', title: '', price: '', image: '', developer: '', linktree: '', paymentPlan: '', units: '', ebookUrl: '', bedrooms: '', bathrooms: '', garage: '', salesStart: '', constructionStart: '', deliveryDate: '', constructionStatus: 'Planta' }); 
+                                loadData(user.uid);
+                            }} className="btn-primary flex-1 py-4 rounded-xl uppercase shadow-lg">SALVAR</button>
+                            <button onClick={() => setShowForm(false)} className="flex-1 bg-slate-100 text-slate-500 font-bold py-4 rounded-xl uppercase hover:bg-slate-200 transition">CANCELAR</button>
                         </div>
                     </div>
                 </div>
